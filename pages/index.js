@@ -5,17 +5,30 @@ export default function Home() {
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Load chat history on initial load
   useEffect(() => {
-    // Add Inter font dynamically
+    const storedChat = localStorage.getItem("chat-history");
+    if (storedChat) {
+      setChat(JSON.parse(storedChat));
+    }
+
     const link = document.createElement("link");
     link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
   }, []);
 
+  // Save chat to localStorage on every update
+  useEffect(() => {
+    localStorage.setItem("chat-history", JSON.stringify(chat));
+  }, [chat]);
+
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const userMessage = { role: "user", content: input };
+
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const userMessage = { role: "user", content: input, time: now };
     setChat([...chat, userMessage]);
     setInput("");
     setLoading(true);
@@ -23,11 +36,15 @@ export default function Home() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: userMessage.content }),
+      body: JSON.stringify({ message: input }),
     });
 
     const data = await res.json();
-    const botMessage = { role: "bot", content: data.reply };
+    const botMessage = {
+      role: "bot",
+      content: data.reply,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
     setChat((prev) => [...prev, botMessage]);
     setLoading(false);
   };
@@ -37,7 +54,7 @@ export default function Home() {
       <div style={styles.container}>
         <h1 style={styles.title}>The Accountant’s Companion</h1>
         <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, or journal entries, etc!
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, journal entries, and more!
         </p>
 
         <div style={styles.chatBox}>
@@ -46,20 +63,17 @@ export default function Home() {
               key={index}
               style={{
                 ...styles.message,
-                ...(
-                  msg.role === "user" ? styles.userMessage : styles.botMessage
-                ),
+                ...(msg.role === "user" ? styles.userMessage : styles.botMessage),
               }}
             >
-              <span style={styles.icon}>
-                {msg.role === "user" ? "🧑‍💼" : "🤖"}
-              </span>
-              <span>{msg.content}</span>
+              <div style={styles.messageContent}>{msg.content}</div>
+              <div style={styles.timestamp}>{msg.time}</div>
             </div>
           ))}
           {loading && (
             <div style={styles.botMessage}>
-              <span style={styles.icon}>🤖</span> Typing...
+              <div className="spinner" style={styles.spinner}></div>
+              <div style={styles.timestamp}>typing...</div>
             </div>
           )}
         </div>
@@ -132,22 +146,26 @@ const styles = {
     marginBottom: "1rem",
   },
   message: {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: "0.5rem",
     padding: "0.75rem",
     borderRadius: "6px",
     marginBottom: "0.5rem",
+    position: "relative",
   },
   userMessage: {
     backgroundColor: "#d1e7ff",
+    textAlign: "right",
   },
   botMessage: {
     backgroundColor: "#e2ffe8",
+    textAlign: "left",
   },
-  icon: {
-    fontSize: "1.25rem",
-    minWidth: "1.5rem",
+  messageContent: {
+    fontSize: "1rem",
+  },
+  timestamp: {
+    fontSize: "0.75rem",
+    color: "#555",
+    marginTop: "0.25rem",
   },
   inputSection: {
     display: "flex",
@@ -185,4 +203,25 @@ const styles = {
     textDecoration: "none",
     fontWeight: "600",
   },
+  spinner: {
+    width: "24px",
+    height: "24px",
+    border: "3px solid #ccc",
+    borderTop: "3px solid #0070f3",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
+    marginBottom: "0.5rem",
+  },
 };
+
+// CSS animation
+if (typeof window !== "undefined") {
+  const style = document.createElement("style");
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}
