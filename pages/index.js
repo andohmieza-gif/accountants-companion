@@ -5,129 +5,115 @@ export default function Home() {
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  const sendMessage = async () => {
     if (!input.trim()) return;
-
     const userMessage = { role: "user", content: input };
     setChat([...chat, userMessage]);
     setInput("");
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: input }),
+    });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setChat((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      } else {
-        setChat((prev) => [...prev, { role: "assistant", content: "Sorry, something went wrong." }]);
-      }
-    } catch {
-      setChat((prev) => [...prev, { role: "assistant", content: "Network error, please try again." }]);
-    }
-
+    const data = await res.json();
+    const botMessage = { role: "bot", content: data.reply };
+    setChat((prev) => [...prev, botMessage]);
     setLoading(false);
-  }
+  };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: "2rem",
-        backgroundImage: "url('https://images.unsplash.com/photo-1581091012184-7a0c0f0f9553')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        color: "black",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "1rem", textShadow: "2px 2px 6px black" }}>
-        The Accountant's Companion
-      </h1>
-      <p style={{ marginBottom: "2rem", fontSize: "1.2rem", maxWidth: 600, textShadow: "1px 1px 3px black" }}>
-        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax, CPA, journal entries!
+    <div style={styles.container}>
+      <h1 style={styles.title}>The Accountant’s Companion</h1>
+      <p style={styles.welcome}>
+        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax, CPA, journal entries and more!
       </p>
 
-      <div
-        style={{
-          maxWidth: 700,
-          backgroundColor: "rgba(255 255 255 / 0.9)",
-          color: "#000",
-          borderRadius: 12,
-          padding: "1rem",
-          minHeight: 300,
-          overflowY: "auto",
-          marginBottom: "1rem",
-        }}
-      >
+      <div style={styles.chatBox}>
         {chat.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              marginBottom: 12,
-              textAlign: msg.role === "user" ? "right" : "left",
-            }}
-          >
-            <div
-              style={{
-                display: "inline-block",
-                backgroundColor: msg.role === "user" ? "#0070f3" : "#e1e1e1",
-                color: msg.role === "user" ? "white" : "#000",
-                padding: "8px 14px",
-                borderRadius: 18,
-                maxWidth: "80%",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {msg.content}
-            </div>
+          <div key={i} style={msg.role === "user" ? styles.user : styles.bot}>
+            <strong>{msg.role === "user" ? "You" : "Genius"}:</strong> {msg.content}
           </div>
         ))}
-        {loading && <p>Thinking...</p>}
+        {loading && <div style={styles.bot}>Genius: Typing...</div>}
       </div>
 
-      <form onSubmit={handleSubmit} style={{ maxWidth: 700, display: "flex", gap: 10 }}>
+      <div style={styles.inputContainer}>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask your accounting question here..."
-          style={{ flexGrow: 1, padding: "0.7rem 1rem", borderRadius: 12, border: "1px solid #ccc" }}
-          disabled={loading}
+          placeholder="Type your accounting question..."
+          style={styles.input}
         />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          style={{
-            padding: "0.7rem 1.5rem",
-            borderRadius: 12,
-            backgroundColor: "#0070f3",
-            color: "white",
-            border: "none",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          Send
-        </button>
-      </form>
+        <button onClick={sendMessage} style={styles.button}>Ask</button>
+      </div>
 
-      <footer style={{ marginTop: "2rem", fontSize: "0.9rem", color: "white", textShadow: "1px 1px 2px black" }}>
-        Built by Mieza Andoh •{" "}
-        <a
-          href="https://www.linkedin.com/in/mieza-morkye-andoh"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "white", textDecoration: "underline" }}
-        >
-          LinkedIn
-        </a>
+      <footer style={styles.footer}>
+        Built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer">Mieza Andoh</a>
       </footer>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    backgroundImage: `url('https://images.unsplash.com/photo-1600267165628-44c2ebdd09f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80')`,
+    backgroundSize: "cover",
+    minHeight: "100vh",
+    padding: "2rem",
+    color: "white",
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    textShadow: "1px 1px 2px black",
+  },
+  title: {
+    fontSize: "2.5rem",
+    marginBottom: "0.5rem",
+  },
+  welcome: {
+    fontSize: "1.2rem",
+    marginBottom: "2rem",
+  },
+  chatBox: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: "1rem",
+    borderRadius: "8px",
+    maxHeight: "50vh",
+    overflowY: "auto",
+    marginBottom: "1rem",
+  },
+  user: {
+    marginBottom: "0.5rem",
+    color: "#ffcc70",
+  },
+  bot: {
+    marginBottom: "0.5rem",
+    color: "#c0fdfb",
+  },
+  inputContainer: {
+    display: "flex",
+    gap: "0.5rem",
+    marginTop: "1rem",
+  },
+  input: {
+    flex: 1,
+    padding: "0.5rem",
+    borderRadius: "4px",
+    border: "none",
+    fontSize: "1rem",
+  },
+  button: {
+    padding: "0.5rem 1rem",
+    borderRadius: "4px",
+    backgroundColor: "#00aaff",
+    color: "white",
+    border: "none",
+    cursor: "pointer",
+  },
+  footer: {
+    marginTop: "2rem",
+    fontSize: "0.9rem",
+  },
+};
