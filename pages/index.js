@@ -43,7 +43,7 @@ export default function Home() {
         backgroundImage: "url('https://images.unsplash.com/photo-1581091012184-7a0c0f0f9553')",
         backgroundSize: "cover",
         backgroundPosition: "center",
-        color: "white",
+        color: "black",
         fontFamily: "Arial, sans-serif",
       }}
     >
