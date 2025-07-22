@@ -28,7 +28,7 @@ export default function Home() {
     <div style={styles.container}>
       <h1 style={styles.title}>The Accountant’s Companion</h1>
       <p style={styles.welcome}>
-        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax, CPA, journal entries and more!
+        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax, CPA, journal entries, and more!
       </p>
 
       <div style={styles.chatBox}>
@@ -52,7 +52,7 @@ export default function Home() {
       </div>
 
       <footer style={styles.footer}>
-        Built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer">Mieza Andoh</a>
+        Built by Mieza Andoh <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer">LinkedIn</a>
       </footer>
     </div>
   );
@@ -60,7 +60,7 @@ export default function Home() {
 
 const styles = {
   container: {
-    backgroundImage: `url('https://images.unsplash.com/photo-1600267165628-44c2ebdd09f4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80')`,
+    backgroundImage: `url('https://images.unsplash.com/photo-1588776814546-4a2b25c17388?auto=format&fit=crop&w=1400&q=80')`,
     backgroundSize: "cover",
     minHeight: "100vh",
     padding: "2rem",
