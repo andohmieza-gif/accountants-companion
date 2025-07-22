@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Add Inter font dynamically
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }, []);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -15,7 +23,7 @@ export default function Home() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
+      body: JSON.stringify({ message: userMessage.content }),
     });
 
     const data = await res.json();
@@ -25,95 +33,156 @@ export default function Home() {
   };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>The Accountant’s Companion</h1>
-      <p style={styles.welcome}>
-        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax, CPA, journal entries, and more!
-      </p>
+    <div style={styles.wrapper}>
+      <div style={styles.container}>
+        <h1 style={styles.title}>The Accountant’s Companion</h1>
+        <p style={styles.subtitle}>
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, or journal entries, etc!
+        </p>
 
-      <div style={styles.chatBox}>
-        {chat.map((msg, i) => (
-          <div key={i} style={msg.role === "user" ? styles.user : styles.bot}>
-            <strong>{msg.role === "user" ? "You" : "Genius"}:</strong> {msg.content}
-          </div>
-        ))}
-        {loading && <div style={styles.bot}>Genius: Typing...</div>}
+        <div style={styles.chatBox}>
+          {chat.map((msg, index) => (
+            <div
+              key={index}
+              style={{
+                ...styles.message,
+                ...(
+                  msg.role === "user" ? styles.userMessage : styles.botMessage
+                ),
+              }}
+            >
+              <span style={styles.icon}>
+                {msg.role === "user" ? "🧑‍💼" : "🤖"}
+              </span>
+              <span>{msg.content}</span>
+            </div>
+          ))}
+          {loading && (
+            <div style={styles.botMessage}>
+              <span style={styles.icon}>🤖</span> Typing...
+            </div>
+          )}
+        </div>
+
+        <div style={styles.inputSection}>
+          <input
+            type="text"
+            placeholder="Type your accounting question..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            style={styles.input}
+          />
+          <button onClick={sendMessage} style={styles.button}>
+            Ask
+          </button>
+        </div>
+
+        <footer style={styles.footer}>
+          Built by{" "}
+          <a
+            href="https://www.linkedin.com/in/mieza-morkye-andoh"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.link}
+          >
+            Mieza Andoh
+          </a>
+        </footer>
       </div>
-
-      <div style={styles.inputContainer}>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your accounting question..."
-          style={styles.input}
-        />
-        <button onClick={sendMessage} style={styles.button}>Ask</button>
-      </div>
-
-      <footer style={styles.footer}>
-        Built by Mieza Andoh <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-      </footer>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    backgroundImage: `url('https://images.unsplash.com/photo-1588776814546-4a2b25c17388?auto=format&fit=crop&w=1400&q=80')`,
-    backgroundSize: "cover",
+  wrapper: {
+    backgroundColor: "#f5f5f5",
+    fontFamily: "'Inter', sans-serif",
     minHeight: "100vh",
-    padding: "2rem",
-    color: "white",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    textShadow: "1px 1px 2px black",
+    padding: "1rem",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  container: {
+    background: "#ffffff",
+    padding: "1.5rem",
+    borderRadius: "12px",
+    width: "100%",
+    maxWidth: "700px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
   },
   title: {
-    fontSize: "2.5rem",
+    fontSize: "2rem",
+    fontWeight: "600",
     marginBottom: "0.5rem",
+    color: "#000",
   },
-  welcome: {
-    fontSize: "1.2rem",
-    marginBottom: "2rem",
+  subtitle: {
+    fontSize: "1rem",
+    marginBottom: "1.5rem",
+    color: "#333",
   },
   chatBox: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "#f0f0f0",
     padding: "1rem",
     borderRadius: "8px",
-    maxHeight: "50vh",
+    minHeight: "250px",
+    maxHeight: "400px",
     overflowY: "auto",
     marginBottom: "1rem",
   },
-  user: {
-    marginBottom: "0.5rem",
-    color: "#ffcc70",
-  },
-  bot: {
-    marginBottom: "0.5rem",
-    color: "#c0fdfb",
-  },
-  inputContainer: {
+  message: {
     display: "flex",
+    alignItems: "flex-start",
+    gap: "0.5rem",
+    padding: "0.75rem",
+    borderRadius: "6px",
+    marginBottom: "0.5rem",
+  },
+  userMessage: {
+    backgroundColor: "#d1e7ff",
+  },
+  botMessage: {
+    backgroundColor: "#e2ffe8",
+  },
+  icon: {
+    fontSize: "1.25rem",
+    minWidth: "1.5rem",
+  },
+  inputSection: {
+    display: "flex",
+    flexDirection: "row",
     gap: "0.5rem",
     marginTop: "1rem",
+    flexWrap: "wrap",
   },
   input: {
-    flex: 1,
-    padding: "0.5rem",
-    borderRadius: "4px",
-    border: "none",
+    flexGrow: 1,
+    padding: "0.75rem",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
     fontSize: "1rem",
+    minWidth: "200px",
   },
   button: {
-    padding: "0.5rem 1rem",
-    borderRadius: "4px",
-    backgroundColor: "#00aaff",
-    color: "white",
+    backgroundColor: "#0070f3",
+    color: "#fff",
     border: "none",
+    padding: "0.75rem 1.25rem",
+    borderRadius: "6px",
     cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "1rem",
   },
   footer: {
     marginTop: "2rem",
     fontSize: "0.9rem",
+    textAlign: "center",
+    color: "#666",
+  },
+  link: {
+    color: "#0070f3",
+    textDecoration: "none",
+    fontWeight: "600",
   },
 };
