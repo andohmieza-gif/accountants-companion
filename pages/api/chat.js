@@ -1,11 +1,6 @@
-// /pages/api/chat.js
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const openai = new OpenAIApi(configuration);
+const openai = new OpenAI(); // Reads API key from process.env.OPENAI_API_KEY automatically
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -14,30 +9,30 @@ export default async function handler(req, res) {
 
   const { message } = req.body;
 
-  if (!message || message.trim() === "") {
+  if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
 
   try {
-    const completion = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
           content:
-            "You are The Accountant's Companion — a helpful AI assistant specializing in accounting. Reply clearly and practically to questions about GAAP, audit, tax, CPA exam topics, and journal entries.",
+            "You are The Accountant's Companion — a helpful AI chatbot for accounting students and professionals. You explain accounting topics like GAAP, CPA exams, audit, tax, and journal entries in clear, practical language.",
         },
-        { role: "user", content: message },
+        {
+          role: "user",
+          content: message,
+        },
       ],
-      temperature: 0.5,
-      max_tokens: 1000,
     });
 
-    const reply = completion.data.choices[0].message.content;
-
+    const reply = response.choices[0]?.message?.content || "Sorry, I didn't get that.";
     res.status(200).json({ reply });
   } catch (error) {
-    console.error("OpenAI error:", error.response?.data || error.message);
-    res.status(500).json({ error: "OpenAI request failed" });
+    console.error("OpenAI API error:", error);
+    res.status(500).json({ error: "OpenAI request failed. Please try again later." });
   }
 }
