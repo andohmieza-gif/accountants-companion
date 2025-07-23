@@ -1,112 +1,112 @@
 import { useState } from "react";
-import Head from "next/head";
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSend = async () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
-
-    const newMessage = { role: "user", content: input };
-    setMessages([...messages, newMessage]);
+    const newMessages = [
+      ...messages,
+      { sender: "user", text: input, time: new Date().toLocaleTimeString() },
+    ];
+    setMessages(newMessages);
     setInput("");
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
+    let reply = "";
 
-      const data = await res.json();
+    // Custom reply for builder question
+    if (/who\s+built\s+(this|you)/i.test(input)) {
+      reply =
+        'This chatbot was built by Mieza Andoh. Connect with him on <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #1d4ed8;">LinkedIn</a>.';
+    } else if (/gaap/i.test(input)) {
+      reply = `GAAP stands for Generally Accepted Accounting Principles. You can read more here: <a href="https://www.investopedia.com/terms/g/gaap.asp" target="_blank" style="color: #1d4ed8;">GAAP on Investopedia</a>.`;
+    } else if (/cpa\s+(exam|license)/i.test(input)) {
+      reply =
+        'The CPA exam is a professional credentialing exam. Learn more: <a href="https://www.aicpa.org/becomeacpa" target="_blank" style="color: #1d4ed8;">Become a CPA - AICPA</a>.';
+    } else {
+      // Default API call
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: input }),
+        });
 
-      if (data.result) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: data.result },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: "Sorry, I didn’t get that." },
-        ]);
+        const data = await res.json();
+        reply = data.result || "Sorry, I didn’t get that.";
+      } catch (error) {
+        reply = "Sorry, there was an error. Try again.";
       }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Error fetching response." },
-      ]);
     }
 
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "bot",
+        text: reply,
+        time: new Date().toLocaleTimeString(),
+      },
+    ]);
     setLoading(false);
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
   return (
-    <>
-      <Head>
-        <title>The Accountant's Companion</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
-          rel="stylesheet"
-        />
-      </Head>
-      <div style={styles.container}>
-        <div style={styles.chatBox}>
-          <h1 style={styles.title}>Hi, I'm your Accounting Genius 👋</h1>
-          <p style={styles.subtitle}>
-            Ask me anything about GAAP, audit, tax, CPA, journal entries!
-          </p>
+    <div style={styles.container}>
+      <h1 style={styles.title}>Accounting Genius</h1>
+      <p style={styles.subtitle}>
+        Hi, I'm your Accounting Genius. Ask me anything about GAAP, audit, tax,
+        CPA, journal entries!
+      </p>
 
-          <div style={styles.messages}>
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                style={{
-                  ...styles.message,
-                  backgroundColor:
-                    msg.role === "user" ? "#e3e3e3" : "#d0ebff",
-                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                }}
-              >
-                <span style={styles.msgRole}>
-                  {msg.role === "user" ? "You" : "Accounting Genius"}
-                </span>
-                <p style={styles.msgText}>{msg.content}</p>
-              </div>
-            ))}
-            {loading && <div style={styles.loader}>Thinking...</div>}
-          </div>
-
-          <div style={styles.inputRow}>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your question..."
-              style={styles.input}
-            />
-            <button onClick={handleSend} style={styles.sendButton}>
-              Send
-            </button>
-          </div>
-        </div>
-        <footer style={styles.footer}>
-          Built by{" "}
-          <a
-            href="https://www.linkedin.com/in/mieza-morkye-andoh"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.link}
+      <div style={styles.chatBox}>
+        {messages.map((msg, index) => (
+          <div
+            key={index}
+            style={{
+              ...styles.message,
+              alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
+              backgroundColor: msg.sender === "user" ? "#d1e7ff" : "#f0f0f0",
+            }}
           >
-            Mieza Andoh
-          </a>
-        </footer>
+            <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+            <span style={styles.timestamp}>{msg.time}</span>
+          </div>
+        ))}
+        {loading && <div style={styles.loading}>Typing...</div>}
       </div>
-    </>
+
+      <div style={styles.inputContainer}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyPress}
+          placeholder="Type your accounting question here..."
+          style={styles.input}
+        />
+        <button onClick={sendMessage} style={styles.button}>
+          Send
+        </button>
+      </div>
+
+      <footer style={styles.footer}>
+        Built by{" "}
+        <a
+          href="https://www.linkedin.com/in/mieza-morkye-andoh"
+          target="_blank"
+          style={{ color: "#1d4ed8" }}
+        >
+          Mieza Andoh
+        </a>
+      </footer>
+    </div>
   );
 }
 
@@ -118,90 +118,71 @@ const styles = {
     backgroundSize: "cover",
     backgroundPosition: "center",
     minHeight: "100vh",
+    padding: "20px",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between",
-    padding: "20px",
-  },
-  chatBox: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    borderRadius: "10px",
-    padding: "20px",
-    maxWidth: "700px",
-    width: "100%",
-    margin: "auto",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+    color: "#000000",
   },
   title: {
-    fontSize: "24px",
-    fontWeight: "600",
-    marginBottom: "10px",
-    color: "#222",
+    fontSize: "2rem",
+    marginBottom: "5px",
   },
   subtitle: {
-    fontSize: "16px",
-    color: "#444",
     marginBottom: "20px",
   },
-  messages: {
+  chatBox: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
     gap: "10px",
-    maxHeight: "50vh",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: "8px",
+    padding: "15px",
     overflowY: "auto",
-    marginBottom: "20px",
+    maxHeight: "60vh",
   },
   message: {
-    padding: "12px",
-    borderRadius: "8px",
+    padding: "10px",
+    borderRadius: "6px",
     maxWidth: "80%",
+    fontSize: "1rem",
     wordBreak: "break-word",
   },
-  msgRole: {
-    fontSize: "12px",
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: "4px",
+  timestamp: {
+    fontSize: "0.75rem",
+    color: "#555",
+    marginTop: "4px",
     display: "block",
   },
-  msgText: {
-    fontSize: "14px",
-    color: "#222",
-  },
-  loader: {
+  loading: {
     fontStyle: "italic",
-    color: "#999",
+    color: "#555",
   },
-  inputRow: {
+  inputContainer: {
     display: "flex",
-    gap: "10px",
     marginTop: "10px",
   },
   input: {
     flex: 1,
     padding: "10px",
-    borderRadius: "6px",
+    borderRadius: "6px 0 0 6px",
     border: "1px solid #ccc",
-    fontSize: "14px",
+    fontSize: "1rem",
   },
-  sendButton: {
-    padding: "10px 18px",
-    backgroundColor: "#0070f3",
-    color: "#fff",
+  button: {
+    padding: "10px 15px",
+    borderRadius: "0 6px 6px 0",
     border: "none",
-    borderRadius: "6px",
+    backgroundColor: "#1d4ed8",
+    color: "#fff",
     cursor: "pointer",
-    fontWeight: "600",
   },
   footer: {
-    marginTop: "20px",
+    marginTop: "15px",
     textAlign: "center",
-    fontSize: "14px",
-    color: "#333",
-  },
-  link: {
-    color: "#0070f3",
-    textDecoration: "underline",
-    marginLeft: "5px",
+    fontSize: "0.9rem",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    padding: "10px",
+    borderRadius: "6px",
   },
 };
