@@ -24,17 +24,21 @@ export default function Home() {
     const question = input.trim().toLowerCase();
 
     // Custom hardcoded answers
-    if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
-      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert with experience in accounting, audit, tax, and financial reporting.`;
-    } else if (question.includes("gaap")) {
-      reply = `GAAP stands for Generally Accepted Accounting Principles. Here's a helpful resource: <a href="https://www.investopedia.com/terms/g/gaap.asp" target="_blank" style="color:#0070f3;">GAAP Explained - Investopedia</a>`;
-    } else if (question.includes("cpa exam")) {
-      reply = `The CPA Exam is a licensure exam for accountants. Here's a guide: <a href="https://www.aicpa.org/resources/article/what-is-the-cpa-exam" target="_blank" style="color:#0070f3;">What is the CPA Exam - AICPA</a>`;
-    } else if (question.includes("audit")) {
-      reply = `Auditing involves reviewing financial statements for accuracy. Learn more here: <a href="https://corporatefinanceinstitute.com/resources/accounting/audit/" target="_blank" style="color:#0070f3;">What is an Audit - CFI</a>`;
-    } else if (question.includes("tax")) {
-      reply = `Tax accounting refers to the rules used to generate tax assets and liabilities. Resource: <a href="https://www.irs.gov/" target="_blank" style="color:#0070f3;">IRS Official Website</a>`;
-    } else {
+   if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
+  reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert. He specializes in financial reporting, audit, and tax services.`;
+} else if (question.includes("gaap")) {
+  reply = `GAAP stands for Generally Accepted Accounting Principles — a set of accounting standards companies follow when reporting financial data. It ensures consistency, comparability, and transparency in financial reporting. <br><br>
+  📘 For more details, check out: <a href="https://www.investopedia.com/terms/g/gaap.asp" target="_blank" style="color:#0070f3;">GAAP Explained - Investopedia</a>`;
+} else if (question.includes("cpa exam")) {
+  reply = `The CPA Exam is a professional licensure exam for accountants in the U.S., testing knowledge in auditing, financial accounting, business concepts, and regulation. It's required to become a Certified Public Accountant. <br><br>
+  📚 Learn more here: <a href="https://www.aicpa.org/resources/article/what-is-the-cpa-exam" target="_blank" style="color:#0070f3;">What is the CPA Exam - AICPA</a>`;
+} else if (question.includes("audit")) {
+  reply = `An audit is an independent review of financial statements to ensure accuracy and compliance with accounting standards like GAAP or IFRS. Auditors assess internal controls, verify transactions, and provide assurance to stakeholders. <br><br>
+  🧾 Explore more: <a href="https://corporatefinanceinstitute.com/resources/accounting/audit/" target="_blank" style="color:#0070f3;">What is an Audit - CFI</a>`;
+} else if (question.includes("tax")) {
+  reply = `Tax accounting focuses on the preparation of tax returns and planning for future tax obligations. It uses rules set by tax authorities rather than general accounting principles. <br><br>
+  💼 Visit: <a href="https://www.irs.gov/" target="_blank" style="color:#0070f3;">IRS Official Website</a>`;
+} else {
       try {
         const res = await fetch("/api/chat", {
           method: "POST",
