@@ -1,100 +1,103 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import Head from "next/head";
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [chat, setChat] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load chat history on initial load
-  useEffect(() => {
-    const storedChat = localStorage.getItem("chat-history");
-    if (storedChat) {
-      setChat(JSON.parse(storedChat));
-    }
-
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-  }, []);
-
-  // Save chat to localStorage on every update
-  useEffect(() => {
-    localStorage.setItem("chat-history", JSON.stringify(chat));
-  }, [chat]);
-
-  const sendMessage = async () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const userMessage = { role: "user", content: input, time: now };
-    setChat([...chat, userMessage]);
+    const newMessage = { role: "user", content: input };
+    setMessages([...messages, newMessage]);
     setInput("");
     setLoading(true);
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
-    });
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      });
 
-    const data = await res.json();
-    const botMessage = {
-      role: "bot",
-      content: data.reply,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setChat((prev) => [...prev, botMessage]);
+      const data = await res.json();
+
+      if (data.result) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.result },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Sorry, I didn’t get that." },
+        ]);
+      }
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Error fetching response." },
+      ]);
+    }
+
     setLoading(false);
   };
 
   return (
-    <div style={styles.wrapper}>
+    <>
+      <Head>
+        <title>The Accountant's Companion</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"
+          rel="stylesheet"
+        />
+      </Head>
       <div style={styles.container}>
-        <h1 style={styles.title}>The Accountant’s Companion</h1>
-        <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, journal entries, and more!
-        </p>
-
         <div style={styles.chatBox}>
-          {chat.map((msg, index) => (
-            <div
-              key={index}
-              style={{
-                ...styles.message,
-                ...(msg.role === "user" ? styles.userMessage : styles.botMessage),
-              }}
-            >
-              <div style={styles.messageContent}>{msg.content}</div>
-              <div style={styles.timestamp}>{msg.time}</div>
-            </div>
-          ))}
-          {loading && (
-            <div style={styles.botMessage}>
-              <div className="spinner" style={styles.spinner}></div>
-              <div style={styles.timestamp}>typing...</div>
-            </div>
-          )}
-        </div>
+          <h1 style={styles.title}>Hi, I'm your Accounting Genius 👋</h1>
+          <p style={styles.subtitle}>
+            Ask me anything about GAAP, audit, tax, CPA, journal entries!
+          </p>
 
-        <div style={styles.inputSection}>
-          <input
-            type="text"
-            placeholder="Type your accounting question..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            style={styles.input}
-          />
-          <button onClick={sendMessage} style={styles.button}>
-            Ask
-          </button>
-        </div>
+          <div style={styles.messages}>
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                style={{
+                  ...styles.message,
+                  backgroundColor:
+                    msg.role === "user" ? "#e3e3e3" : "#d0ebff",
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                }}
+              >
+                <span style={styles.msgRole}>
+                  {msg.role === "user" ? "You" : "Accounting Genius"}
+                </span>
+                <p style={styles.msgText}>{msg.content}</p>
+              </div>
+            ))}
+            {loading && <div style={styles.loader}>Thinking...</div>}
+          </div>
 
+          <div style={styles.inputRow}>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your question..."
+              style={styles.input}
+            />
+            <button onClick={handleSend} style={styles.sendButton}>
+              Send
+            </button>
+          </div>
+        </div>
         <footer style={styles.footer}>
           Built by{" "}
           <a
-            href="https://www.linkedin.com/in/mieza-morkye-andoh"
+            href="https://www.linkedin.com/in/miezaandoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
@@ -103,125 +106,102 @@ export default function Home() {
           </a>
         </footer>
       </div>
-    </div>
+    </>
   );
 }
 
 const styles = {
-  wrapper: {
-    backgroundColor: "#f5f5f5",
-    fontFamily: "'Inter', sans-serif",
-    minHeight: "100vh",
-    padding: "1rem",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
   container: {
-    background: "#ffffff",
-    padding: "1.5rem",
-    borderRadius: "12px",
-    width: "100%",
-    maxWidth: "700px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-  },
-  title: {
-    fontSize: "2rem",
-    fontWeight: "600",
-    marginBottom: "0.5rem",
-    color: "#000",
-  },
-  subtitle: {
-    fontSize: "1rem",
-    marginBottom: "1.5rem",
-    color: "#333",
+    fontFamily: "'Inter', sans-serif",
+    backgroundImage:
+      "url('https://images.unsplash.com/photo-1588776814546-4a2b25c17388?auto=format&fit=crop&w=1400&q=80')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    padding: "20px",
   },
   chatBox: {
-    backgroundColor: "#f0f0f0",
-    padding: "1rem",
-    borderRadius: "8px",
-    minHeight: "250px",
-    maxHeight: "400px",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: "10px",
+    padding: "20px",
+    maxWidth: "700px",
+    width: "100%",
+    margin: "auto",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+  },
+  title: {
+    fontSize: "24px",
+    fontWeight: "600",
+    marginBottom: "10px",
+    color: "#222",
+  },
+  subtitle: {
+    fontSize: "16px",
+    color: "#444",
+    marginBottom: "20px",
+  },
+  messages: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "50vh",
     overflowY: "auto",
-    marginBottom: "1rem",
+    marginBottom: "20px",
   },
   message: {
-    padding: "0.75rem",
-    borderRadius: "6px",
-    marginBottom: "0.5rem",
-    position: "relative",
+    padding: "12px",
+    borderRadius: "8px",
+    maxWidth: "80%",
+    wordBreak: "break-word",
   },
-  userMessage: {
-    backgroundColor: "#d1e7ff",
-    textAlign: "right",
+  msgRole: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: "4px",
+    display: "block",
   },
-  botMessage: {
-    backgroundColor: "#e2ffe8",
-    textAlign: "left",
+  msgText: {
+    fontSize: "14px",
+    color: "#222",
   },
-  messageContent: {
-    fontSize: "1rem",
+  loader: {
+    fontStyle: "italic",
+    color: "#999",
   },
-  timestamp: {
-    fontSize: "0.75rem",
-    color: "#555",
-    marginTop: "0.25rem",
-  },
-  inputSection: {
+  inputRow: {
     display: "flex",
-    flexDirection: "row",
-    gap: "0.5rem",
-    marginTop: "1rem",
-    flexWrap: "wrap",
+    gap: "10px",
+    marginTop: "10px",
   },
   input: {
-    flexGrow: 1,
-    padding: "0.75rem",
+    flex: 1,
+    padding: "10px",
     borderRadius: "6px",
     border: "1px solid #ccc",
-    fontSize: "1rem",
-    minWidth: "200px",
+    fontSize: "14px",
   },
-  button: {
+  sendButton: {
+    padding: "10px 18px",
     backgroundColor: "#0070f3",
     color: "#fff",
     border: "none",
-    padding: "0.75rem 1.25rem",
     borderRadius: "6px",
     cursor: "pointer",
     fontWeight: "600",
-    fontSize: "1rem",
   },
   footer: {
-    marginTop: "2rem",
-    fontSize: "0.9rem",
+    marginTop: "20px",
     textAlign: "center",
-    color: "#666",
+    fontSize: "14px",
+    color: "#333",
   },
   link: {
     color: "#0070f3",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-  spinner: {
-    width: "24px",
-    height: "24px",
-    border: "3px solid #ccc",
-    borderTop: "3px solid #0070f3",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-    marginBottom: "0.5rem",
+    textDecoration: "underline",
+    marginLeft: "5px",
   },
 };
-
-// CSS animation
-if (typeof window !== "undefined") {
-  const style = document.createElement("style");
-  style.innerHTML = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(style);
-}
