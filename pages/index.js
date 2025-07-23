@@ -1,27 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [input, setInput] = useState("");
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  // Load chat history on initial load
-  useEffect(() => {
-    const storedChat = localStorage.getItem("chat-history");
-    if (storedChat) {
-      setChat(JSON.parse(storedChat));
-    }
-
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-  }, []);
-
-  // Save chat to localStorage on every update
-  useEffect(() => {
-    localStorage.setItem("chat-history", JSON.stringify(chat));
-  }, [chat]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -29,32 +11,57 @@ export default function Home() {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const userMessage = { role: "user", content: input, time: now };
-    setChat([...chat, userMessage]);
+    setChat((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
 
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
-    });
+    let reply = "";
 
-    const data = await res.json();
+    // Custom response to "who built this"
+    if (/who\s+(built|made|created)\s+(you|this|chatbot|bot)/i.test(input)) {
+      reply =
+        `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color:#0070f3;">Mieza Andoh</a>, a CPA and accounting expert with deep experience in audit, tax, and financial reporting.`;
+    } else {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: input }),
+        });
+        const data = await res.json();
+        reply = data.reply || "Sorry, I didn’t get that.";
+      } catch (error) {
+        reply = "Oops! Something went wrong.";
+      }
+    }
+
     const botMessage = {
       role: "bot",
-      content: data.reply,
+      content: reply,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
+
     setChat((prev) => [...prev, botMessage]);
     setLoading(false);
   };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }, []);
 
   return (
     <div style={styles.wrapper}>
       <div style={styles.container}>
         <h1 style={styles.title}>The Accountant’s Companion</h1>
         <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, journal entries and more!
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, or journal entries!
         </p>
 
         <div style={styles.chatBox}>
@@ -66,7 +73,10 @@ export default function Home() {
                 ...(msg.role === "user" ? styles.userMessage : styles.botMessage),
               }}
             >
-              <div style={styles.messageContent}>{msg.content}</div>
+              <div
+                style={styles.messageContent}
+                dangerouslySetInnerHTML={{ __html: msg.content }}
+              />
               <div style={styles.timestamp}>{msg.time}</div>
             </div>
           ))}
@@ -84,6 +94,7 @@ export default function Home() {
             placeholder="Type your accounting question..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
             style={styles.input}
           />
           <button onClick={sendMessage} style={styles.button}>
@@ -217,11 +228,11 @@ const styles = {
 // CSS animation
 if (typeof window !== "undefined") {
   const style = document.createElement("style");
-  style.innerHTML = `
+  style.innerHTML = 
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-  `;
+  ;
   document.head.appendChild(style);
 }
