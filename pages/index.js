@@ -97,7 +97,7 @@ export default function Home() {
         <footer style={styles.footer}>
           Built by{" "}
           <a
-            href="https://www.linkedin.com/in/miezaandoh"
+            href="https://www.linkedin.com/in/mieza-morkye-andoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
