@@ -5,7 +5,6 @@ export default function Home() {
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load font
   useEffect(() => {
     const link = document.createElement("link");
     link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
@@ -24,9 +23,17 @@ export default function Home() {
     let reply = "";
     const question = input.trim().toLowerCase();
 
-    // Custom reply for builder question
+    // Custom hardcoded answers
     if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
-      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert with extensive experience in audit, tax, and financial reporting.`;
+      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert with experience in accounting, audit, tax, and financial reporting.`;
+    } else if (question.includes("gaap")) {
+      reply = `GAAP stands for Generally Accepted Accounting Principles. Here's a helpful resource: <a href="https://www.investopedia.com/terms/g/gaap.asp" target="_blank" style="color:#0070f3;">GAAP Explained - Investopedia</a>`;
+    } else if (question.includes("cpa exam")) {
+      reply = `The CPA Exam is a licensure exam for accountants. Here's a guide: <a href="https://www.aicpa.org/resources/article/what-is-the-cpa-exam" target="_blank" style="color:#0070f3;">What is the CPA Exam - AICPA</a>`;
+    } else if (question.includes("audit")) {
+      reply = `Auditing involves reviewing financial statements for accuracy. Learn more here: <a href="https://corporatefinanceinstitute.com/resources/accounting/audit/" target="_blank" style="color:#0070f3;">What is an Audit - CFI</a>`;
+    } else if (question.includes("tax")) {
+      reply = `Tax accounting refers to the rules used to generate tax assets and liabilities. Resource: <a href="https://www.irs.gov/" target="_blank" style="color:#0070f3;">IRS Official Website</a>`;
     } else {
       try {
         const res = await fetch("/api/chat", {
@@ -95,14 +102,14 @@ export default function Home() {
         </div>
 
         <footer style={styles.footer}>
-          Built by&nbsp;
+          Built by{" "}
           <a
             href="https://www.linkedin.com/in/mieza-morkye-andoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
           >
-            Mieza Andoh
+            Mieza Andoh
           </a>
         </footer>
       </div>
@@ -213,7 +220,6 @@ const styles = {
   },
 };
 
-// CSS animation for spinner
 if (typeof window !== "undefined") {
   const style = document.createElement("style");
   style.innerHTML = `
