@@ -5,22 +5,28 @@ export default function Home() {
   const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // Load font
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+  }, []);
+
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const userMessage = { role: "user", content: input, time: now };
-    setChat((prev) => [...prev, userMessage]);
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setChat((prev) => [...prev, { sender: "user", content: input, time }]);
     setInput("");
     setLoading(true);
 
     let reply = "";
+    const question = input.trim().toLowerCase();
 
-    // Custom response to "who built this"
-    if (/who\s+(built|made|created)\s+(you|this|chatbot|bot)/i.test(input)) {
-      reply =
-        `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color:#0070f3;">Mieza Andoh</a>, a CPA and accounting expert with deep experience in audit, tax, and financial reporting.`;
+    // Custom reply for builder question
+    if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
+      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert with extensive experience in audit, tax, and financial reporting.`;
     } else {
       try {
         const res = await fetch("/api/chat", {
@@ -30,18 +36,13 @@ export default function Home() {
         });
         const data = await res.json();
         reply = data.reply || "Sorry, I didn’t get that.";
-      } catch (error) {
+      } catch {
         reply = "Oops! Something went wrong.";
       }
     }
 
-    const botMessage = {
-      role: "bot",
-      content: reply,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setChat((prev) => [...prev, botMessage]);
+    const botTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setChat((prev) => [...prev, { sender: "bot", content: reply, time: botTime }]);
     setLoading(false);
   };
 
@@ -49,34 +50,24 @@ export default function Home() {
     if (e.key === "Enter") sendMessage();
   };
 
-  useEffect(() => {
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-  }, []);
-
   return (
     <div style={styles.wrapper}>
       <div style={styles.container}>
         <h1 style={styles.title}>The Accountant’s Companion</h1>
         <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, or journal entries!
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, journal entries and more!
         </p>
 
         <div style={styles.chatBox}>
-          {chat.map((msg, index) => (
+          {chat.map((msg, idx) => (
             <div
-              key={index}
+              key={idx}
               style={{
                 ...styles.message,
-                ...(msg.role === "user" ? styles.userMessage : styles.botMessage),
+                ...(msg.sender === "user" ? styles.userMessage : styles.botMessage),
               }}
             >
-              <div
-                style={styles.messageContent}
-                dangerouslySetInnerHTML={{ __html: msg.content }}
-              />
+              <div dangerouslySetInnerHTML={{ __html: msg.content }} />
               <div style={styles.timestamp}>{msg.time}</div>
             </div>
           ))}
@@ -88,7 +79,7 @@ export default function Home() {
           )}
         </div>
 
-        <div style={styles.inputSection}>
+        <div style={styles.inputContainer}>
           <input
             type="text"
             placeholder="Type your accounting question..."
@@ -96,21 +87,22 @@ export default function Home() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
             style={styles.input}
+            disabled={loading}
           />
-          <button onClick={sendMessage} style={styles.button}>
-            Ask
+          <button onClick={sendMessage} style={styles.button} disabled={loading}>
+            Send
           </button>
         </div>
 
         <footer style={styles.footer}>
-          Built by{" "}
+          Built by&nbsp;
           <a
             href="https://www.linkedin.com/in/mieza-morkye-andoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
           >
-            Mieza Andoh
+            Mieza Andoh
           </a>
         </footer>
       </div>
@@ -161,57 +153,53 @@ const styles = {
     borderRadius: "6px",
     marginBottom: "0.5rem",
     position: "relative",
+    wordBreak: "break-word",
   },
   userMessage: {
     backgroundColor: "#d1e7ff",
+    alignSelf: "flex-end",
     textAlign: "right",
   },
   botMessage: {
     backgroundColor: "#e2ffe8",
+    alignSelf: "flex-start",
     textAlign: "left",
-  },
-  messageContent: {
-    fontSize: "1rem",
   },
   timestamp: {
     fontSize: "0.75rem",
     color: "#555",
     marginTop: "0.25rem",
+    textAlign: "right",
   },
-  inputSection: {
+  inputContainer: {
     display: "flex",
-    flexDirection: "row",
-    gap: "0.5rem",
     marginTop: "1rem",
-    flexWrap: "wrap",
   },
   input: {
-    flexGrow: 1,
-    padding: "0.75rem",
-    borderRadius: "6px",
+    flex: 1,
+    padding: "10px",
+    borderRadius: "6px 0 0 6px",
     border: "1px solid #ccc",
     fontSize: "1rem",
-    minWidth: "200px",
   },
   button: {
+    padding: "10px 15px",
+    borderRadius: "0 6px 6px 0",
+    border: "none",
     backgroundColor: "#0070f3",
     color: "#fff",
-    border: "none",
-    padding: "0.75rem 1.25rem",
-    borderRadius: "6px",
     cursor: "pointer",
     fontWeight: "600",
-    fontSize: "1rem",
   },
   footer: {
-    marginTop: "2rem",
-    fontSize: "0.9rem",
+    marginTop: "1rem",
     textAlign: "center",
+    fontSize: "0.9rem",
     color: "#666",
   },
   link: {
     color: "#0070f3",
-    textDecoration: "none",
+    textDecoration: "underline",
     fontWeight: "600",
   },
   spinner: {
@@ -225,14 +213,14 @@ const styles = {
   },
 };
 
-// CSS animation
+// CSS animation for spinner
 if (typeof window !== "undefined") {
   const style = document.createElement("style");
-  style.innerHTML = 
+  style.innerHTML = `
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-  ;
+  `;
   document.head.appendChild(style);
 }
