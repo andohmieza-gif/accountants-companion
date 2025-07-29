@@ -26,7 +26,7 @@ export default function Home() {
 
     // Custom reply for builder question
     if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
-      reply = This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, an accounting expert with extensive experience in audit, tax, and financial reporting.;
+      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, an accounting expert with extensive knowledge and experience in accounting, audit, and financial reporting.`;
     } else {
       try {
         const res = await fetch("/api/chat", {
@@ -95,14 +95,14 @@ export default function Home() {
         </div>
 
         <footer style={styles.footer}>
-          Built by&nbsp;
+          Built by{" "}
           <a
             href="https://www.linkedin.com/in/mieza-morkye-andoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
           >
-            Mieza Andoh
+            Mieza Andoh
           </a>
         </footer>
       </div>
@@ -216,11 +216,11 @@ const styles = {
 // CSS animation for spinner
 if (typeof window !== "undefined") {
   const style = document.createElement("style");
-  style.innerHTML = 
+  style.innerHTML = `
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-  ;
+  `;
   document.head.appendChild(style);
 }
