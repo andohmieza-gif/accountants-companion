@@ -55,7 +55,7 @@ export default function Home() {
       <div style={styles.container}>
         <h1 style={styles.title}>The Accountant’s Companion</h1>
         <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, journal entries and more!
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, IFRS, audit, tax, CPA, journal entries and more!
         </p>
 
         <div style={styles.chatBox}>
