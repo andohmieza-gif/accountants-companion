@@ -22,23 +22,16 @@ export default function Home() {
     setLoading(true);
 
     let reply = "";
-    const question = input.trim().toLowerCase();
-
-    // Custom reply for builder question
-    if (/who (built|created|made) (this|you|the chatbot)/.test(question)) {
-      reply = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" style="color: #0070f3;">Mieza Andoh</a>, a Certified Public Accountant and accounting expert with extensive experience in audit, tax, and financial reporting.`;
-    } else {
-      try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: input }),
-        });
-        const data = await res.json();
-        reply = data.reply || "Sorry, I didn’t get that.";
-      } catch {
-        reply = "Oops! Something went wrong.";
-      }
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      });
+      const data = await res.json();
+      reply = data.reply || "Sorry, I didn’t get that.";
+    } catch {
+      reply = "Oops! Something went wrong.";
     }
 
     const botTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -55,7 +48,7 @@ export default function Home() {
       <div style={styles.container}>
         <h1 style={styles.title}>The Accountant’s Companion</h1>
         <p style={styles.subtitle}>
-          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, audit, tax, CPA, or journal entries!
+          Hi, I'm your <strong>Accounting Genius</strong>. Ask me anything about GAAP, IFRS, audit, tax, CPA, journal entries and more!
         </p>
 
         <div style={styles.chatBox}>
@@ -95,14 +88,14 @@ export default function Home() {
         </div>
 
         <footer style={styles.footer}>
-          Built by&nbsp;
+          Built by{" "}
           <a
             href="https://www.linkedin.com/in/mieza-morkye-andoh"
             target="_blank"
             rel="noopener noreferrer"
             style={styles.link}
           >
-            Mieza Andoh
+            Mieza Andoh
           </a>
         </footer>
       </div>
