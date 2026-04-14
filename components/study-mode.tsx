@@ -53,11 +53,11 @@ const QUIZ_TOPICS = [
 ];
 
 const FLASHCARD_TOPICS = [
-  { name: "Basic Accounting Terms", icon: "📚", count: 8 },
-  { name: "Financial Ratios", icon: "📈", count: 8 },
-  { name: "Journal Entry Rules", icon: "✍️", count: 8 },
-  { name: "GAAP Principles", icon: "📋", count: 8 },
-  { name: "Audit Assertions", icon: "✅", count: 8 },
+  { name: "Basic Accounting Terms", icon: "📚", count: 10 },
+  { name: "Financial Ratios", icon: "📈", count: 10 },
+  { name: "Journal Entry Rules", icon: "✍️", count: 10 },
+  { name: "GAAP Principles", icon: "📋", count: 10 },
+  { name: "Audit Assertions", icon: "✅", count: 10 },
 ];
 
 export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
