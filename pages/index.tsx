@@ -222,6 +222,9 @@ export default function Home() {
   const [currentFollowups, setCurrentFollowups] = useState<string[]>([]);
   const [showStudyMode, setShowStudyMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -295,37 +298,81 @@ export default function Home() {
     bottomRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) =>
+        MediaRecorder.isTypeSupported(t)
+      );
+      
+      if (!mimeType) {
+        setToast("Audio recording not supported");
+        return;
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        
+        if (audioChunksRef.current.length === 0) return;
+
+        setIsTranscribing(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const formData = new FormData();
+        formData.append("audio", new File([audioBlob], "recording.webm", { type: mimeType }));
+
+        try {
+          const res = await fetch("/api/transcribe", {
+            method: "POST",
+            body: formData,
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) {
+              setInput((prev) => prev + (prev ? " " : "") + data.text);
+              inputRef.current?.focus();
+            }
+          } else {
+            setToast("Transcription failed");
+          }
+        } catch {
+          setToast("Transcription failed");
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      mediaRecorder.start(200);
+      setIsListening(true);
+    } catch (err) {
+      setToast("Microphone access denied");
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  }, []);
+
   const toggleVoiceInput = useCallback(() => {
-    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-      setToast("Voice input not supported in this browser");
-      return;
-    }
-
     if (isListening) {
-      setIsListening(false);
-      return;
+      stopRecording();
+    } else {
+      startRecording();
     }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => {
-      setIsListening(false);
-      setToast("Voice input failed");
-    };
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInput((prev) => prev + (prev ? " " : "") + transcript);
-      inputRef.current?.focus();
-    };
-
-    recognition.start();
-  }, [isListening]);
+  }, [isListening, startRecording, stopRecording]);
 
   useEffect(() => {
     scrollToBottom();
@@ -1128,17 +1175,26 @@ export default function Home() {
                 <motion.button
                   type="button"
                   onClick={toggleVoiceInput}
+                  disabled={isTranscribing}
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                    isListening
-                      ? "bg-red-500 text-white"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    isTranscribing
+                      ? "bg-muted text-muted-foreground cursor-wait"
+                      : isListening
+                        ? "bg-red-500 text-white"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  title={isListening ? "Stop listening" : "Voice input"}
+                  title={isTranscribing ? "Transcribing..." : isListening ? "Stop recording" : "Voice input"}
                 >
-                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  {isTranscribing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isListening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
                 </motion.button>
 
                 {loading ? (
