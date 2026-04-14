@@ -21,9 +21,111 @@ import {
   Zap,
   Target,
   Award,
+  Volume2,
+  VolumeX,
+  Clock,
+  BarChart3,
+  Settings,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// Storage key for study stats
+const STUDY_STATS_KEY = "accountants-companion-study-stats";
+const STUDY_SETTINGS_KEY = "accountants-companion-study-settings";
+
+type Difficulty = "easy" | "medium" | "hard";
+type StudyStats = {
+  totalQuizzes: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  bestStreak: number;
+  totalFlashcards: number;
+  topicStats: Record<string, { correct: number; total: number }>;
+};
+
+type StudySettings = {
+  soundEnabled: boolean;
+  timedMode: boolean;
+  difficulty: Difficulty;
+};
+
+const defaultStats: StudyStats = {
+  totalQuizzes: 0,
+  totalCorrect: 0,
+  totalQuestions: 0,
+  bestStreak: 0,
+  totalFlashcards: 0,
+  topicStats: {},
+};
+
+const defaultSettings: StudySettings = {
+  soundEnabled: true,
+  timedMode: false,
+  difficulty: "medium",
+};
+
+// Simple sound effects using Web Audio API
+const playSound = (type: "correct" | "wrong" | "complete" | "tick", enabled: boolean) => {
+  if (!enabled || typeof window === "undefined") return;
+  
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    switch (type) {
+      case "correct":
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.1); // E5
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+        break;
+      case "wrong":
+        oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.2);
+        break;
+      case "complete":
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.frequency.setValueAtTime(freq, audioContext.currentTime + i * 0.15);
+          gain.gain.setValueAtTime(0.2, audioContext.currentTime + i * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.15 + 0.3);
+          osc.start(audioContext.currentTime + i * 0.15);
+          osc.stop(audioContext.currentTime + i * 0.15 + 0.3);
+        });
+        break;
+      case "tick":
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.05);
+        break;
+    }
+  } catch (e) {
+    // Silently fail if audio not supported
+  }
+};
+
+const DIFFICULTY_CONFIG = {
+  easy: { time: 45, label: "Easy", color: "text-emerald-500" },
+  medium: { time: 30, label: "Medium", color: "text-amber-500" },
+  hard: { time: 15, label: "Hard", color: "text-red-500" },
+};
 
 // Confetti component
 function Confetti({ active }: { active: boolean }) {
@@ -162,7 +264,85 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   
+  // New features state
+  const [showSettings, setShowSettings] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [settings, setSettings] = useState<StudySettings>(defaultSettings);
+  const [stats, setStats] = useState<StudyStats>(defaultStats);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [maxStreak, setMaxStreak] = useState(0);
+  
   const modalRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load settings and stats from localStorage
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem(STUDY_SETTINGS_KEY);
+      if (savedSettings) setSettings(JSON.parse(savedSettings));
+      
+      const savedStats = localStorage.getItem(STUDY_STATS_KEY);
+      if (savedStats) setStats(JSON.parse(savedStats));
+    } catch (e) {
+      // Ignore errors
+    }
+  }, []);
+
+  // Save settings to localStorage
+  const updateSettings = (newSettings: Partial<StudySettings>) => {
+    const updated = { ...settings, ...newSettings };
+    setSettings(updated);
+    try {
+      localStorage.setItem(STUDY_SETTINGS_KEY, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  // Save stats to localStorage
+  const updateStats = (newStats: Partial<StudyStats>) => {
+    const updated = { ...stats, ...newStats };
+    setStats(updated);
+    try {
+      localStorage.setItem(STUDY_STATS_KEY, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  // Timer for timed mode
+  useEffect(() => {
+    if (!settings.timedMode || !quizTopic || showResult || loading || quizComplete) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
+    const timeLimit = DIFFICULTY_CONFIG[settings.difficulty].time;
+    setTimeLeft(timeLimit);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          // Time's up - auto-select wrong answer
+          if (selectedAnswer === null) {
+            const wrongIndex = quizQuestions[currentQuestionIndex]?.correctIndex === 0 ? 1 : 0;
+            handleAnswerSelect(wrongIndex);
+          }
+          return null;
+        }
+        if (prev <= 5) {
+          playSound("tick", settings.soundEnabled);
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
   // Shuffle and rotate loading messages
   useEffect(() => {
@@ -239,12 +419,23 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
 
   const handleAnswerSelect = (index: number) => {
     if (showResult) return;
+    
+    // Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setTimeLeft(null);
+    
     setSelectedAnswer(index);
     setShowResult(true);
     const isCorrect = index === quizQuestions[currentQuestionIndex]?.correctIndex;
     if (isCorrect) {
+      playSound("correct", settings.soundEnabled);
       setScore((s) => s + 1);
-      setStreak((s) => s + 1);
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      if (newStreak > maxStreak) setMaxStreak(newStreak);
       setCorrectFlash(true);
       setTimeout(() => setCorrectFlash(false), 500);
       // Confetti for streaks of 3+
@@ -253,6 +444,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
         setTimeout(() => setShowConfetti(false), 2000);
       }
     } else {
+      playSound("wrong", settings.soundEnabled);
       setStreak(0);
     }
   };
@@ -296,8 +488,30 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
       setCurrentQuestionIndex((i) => i + 1);
       setSelectedAnswer(null);
       setShowResult(false);
+      // Reset timer for next question
+      if (settings.timedMode) {
+        setTimeLeft(DIFFICULTY_CONFIG[settings.difficulty].time);
+      }
     } else {
+      // Quiz complete - save stats
+      playSound("complete", settings.soundEnabled);
       setQuizComplete(true);
+      
+      const topicStats = { ...stats.topicStats };
+      const topic = quizTopic || "Unknown";
+      if (!topicStats[topic]) {
+        topicStats[topic] = { correct: 0, total: 0 };
+      }
+      topicStats[topic].correct += score;
+      topicStats[topic].total += quizQuestions.length;
+      
+      updateStats({
+        totalQuizzes: stats.totalQuizzes + 1,
+        totalCorrect: stats.totalCorrect + score,
+        totalQuestions: stats.totalQuestions + quizQuestions.length,
+        bestStreak: Math.max(stats.bestStreak, maxStreak),
+        topicStats,
+      });
     }
   };
 
@@ -310,6 +524,12 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     setScore(0);
     setQuizComplete(false);
     setStreak(0);
+    setMaxStreak(0);
+    setTimeLeft(null);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
   };
 
   // Keyboard shortcuts for flashcards
@@ -410,16 +630,195 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                   <p className="text-sm text-muted-foreground">Master accounting concepts</p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
-                  theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
-                )}
-              >
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Stats button */}
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    showStats
+                      ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
+                      : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
+                  )}
+                  title="View Stats"
+                >
+                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                </button>
+                {/* Settings button */}
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    showSettings
+                      ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
+                      : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
+                  )}
+                  title="Settings"
+                >
+                  <Settings className="h-5 w-5 text-muted-foreground" />
+                </button>
+                {/* Close button */}
+                <button
+                  onClick={onClose}
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
+                  )}
+                >
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </div>
             </div>
+
+            {/* Settings Panel */}
+            <AnimatePresence>
+              {showSettings && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden border-b border-border/40"
+                >
+                  <div className="px-6 py-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {settings.soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                        <span className="text-sm font-medium">Sound Effects</span>
+                      </div>
+                      <button
+                        onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+                        className={cn(
+                          "relative h-6 w-11 rounded-full transition-colors",
+                          settings.soundEnabled ? "bg-emerald-500" : theme === "dark" ? "bg-card" : "bg-neutral-200"
+                        )}
+                      >
+                        <motion.div
+                          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow"
+                          animate={{ left: settings.soundEnabled ? 24 : 4 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Clock className="h-5 w-5" />
+                        <span className="text-sm font-medium">Timed Mode</span>
+                      </div>
+                      <button
+                        onClick={() => updateSettings({ timedMode: !settings.timedMode })}
+                        className={cn(
+                          "relative h-6 w-11 rounded-full transition-colors",
+                          settings.timedMode ? "bg-emerald-500" : theme === "dark" ? "bg-card" : "bg-neutral-200"
+                        )}
+                      >
+                        <motion.div
+                          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow"
+                          animate={{ left: settings.timedMode ? 24 : 4 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Zap className="h-5 w-5" />
+                        <span className="text-sm font-medium">Difficulty</span>
+                      </div>
+                      <div className="flex gap-1 rounded-lg bg-muted p-1">
+                        {(["easy", "medium", "hard"] as Difficulty[]).map((diff) => (
+                          <button
+                            key={diff}
+                            onClick={() => updateSettings({ difficulty: diff })}
+                            className={cn(
+                              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                              settings.difficulty === diff
+                                ? "bg-background shadow"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {DIFFICULTY_CONFIG[diff].label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {settings.timedMode && (
+                      <p className="text-xs text-muted-foreground">
+                        ⏱️ {DIFFICULTY_CONFIG[settings.difficulty].time} seconds per question
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Stats Panel */}
+            <AnimatePresence>
+              {showStats && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden border-b border-border/40"
+                >
+                  <div className="px-6 py-4">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      <div className={cn(
+                        "rounded-xl p-3 text-center",
+                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                      )}>
+                        <p className="text-2xl font-bold">{stats.totalQuizzes}</p>
+                        <p className="text-xs text-muted-foreground">Quizzes</p>
+                      </div>
+                      <div className={cn(
+                        "rounded-xl p-3 text-center",
+                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                      )}>
+                        <p className="text-2xl font-bold">
+                          {stats.totalQuestions > 0 
+                            ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100) 
+                            : 0}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">Accuracy</p>
+                      </div>
+                      <div className={cn(
+                        "rounded-xl p-3 text-center",
+                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                      )}>
+                        <p className="text-2xl font-bold flex items-center justify-center gap-1">
+                          {stats.bestStreak}
+                          {stats.bestStreak >= 5 && <Flame className="h-5 w-5 text-orange-500" />}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Best Streak</p>
+                      </div>
+                      <div className={cn(
+                        "rounded-xl p-3 text-center",
+                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                      )}>
+                        <p className="text-2xl font-bold">{stats.totalFlashcards}</p>
+                        <p className="text-xs text-muted-foreground">Cards Reviewed</p>
+                      </div>
+                    </div>
+                    {Object.keys(stats.topicStats).length > 0 && (
+                      <div className="mt-4">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">Topic Performance</p>
+                        <div className="space-y-2">
+                          {Object.entries(stats.topicStats).slice(0, 3).map(([topic, data]) => (
+                            <div key={topic} className="flex items-center justify-between text-sm">
+                              <span className="truncate">{topic}</span>
+                              <span className="font-medium">
+                                {Math.round((data.correct / data.total) * 100)}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Tabs */}
             <div className={cn(
@@ -593,9 +992,32 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                               <ChevronLeft className="h-4 w-4" />
                               Exit
                             </button>
-                            <span className="text-muted-foreground">
-                              <span className="font-medium text-foreground">{currentQuestionIndex + 1}</span> of {quizQuestions.length}
-                            </span>
+                            
+                            {/* Timer */}
+                            {settings.timedMode && timeLeft !== null && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className={cn(
+                                  "flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-sm font-bold",
+                                  timeLeft <= 5
+                                    ? "bg-red-500/10 text-red-500 animate-pulse"
+                                    : timeLeft <= 10
+                                    ? "bg-amber-500/10 text-amber-500"
+                                    : theme === "dark" ? "bg-card" : "bg-neutral-100"
+                                )}
+                              >
+                                <Clock className="h-3.5 w-3.5" />
+                                {timeLeft}s
+                              </motion.div>
+                            )}
+                            
+                            {!settings.timedMode && (
+                              <span className="text-muted-foreground">
+                                <span className="font-medium text-foreground">{currentQuestionIndex + 1}</span> of {quizQuestions.length}
+                              </span>
+                            )}
+                            
                             <div className="flex items-center gap-3">
                               {/* Streak indicator */}
                               {streak >= 2 && (
@@ -895,8 +1317,16 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             className="flex-1 rounded-xl"
                             disabled={currentCardIndex === flashcards.length - 1}
                             onClick={() => {
+                              const isLast = currentCardIndex === flashcards.length - 2;
                               setCurrentCardIndex((i) => i + 1);
                               setIsFlipped(false);
+                              // Track flashcard review on last card
+                              if (isLast) {
+                                playSound("complete", settings.soundEnabled);
+                                updateStats({
+                                  totalFlashcards: stats.totalFlashcards + flashcards.length,
+                                });
+                              }
                             }}
                           >
                             <span className="hidden sm:inline">Next</span>
