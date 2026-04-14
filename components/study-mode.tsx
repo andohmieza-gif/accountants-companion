@@ -250,6 +250,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [timeRanOut, setTimeRanOut] = useState(false);
   const [score, setScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -322,10 +323,12 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev === null || prev <= 1) {
-          // Time's up - auto-select wrong answer
-          if (selectedAnswer === null) {
-            const wrongIndex = quizQuestions[currentQuestionIndex]?.correctIndex === 0 ? 1 : 0;
-            handleAnswerSelect(wrongIndex);
+          // Time's up
+          if (selectedAnswer === null && !showResult) {
+            playSound("wrong", settings.soundEnabled);
+            setTimeRanOut(true);
+            setShowResult(true);
+            setStreak(0);
           }
           return null;
         }
@@ -488,6 +491,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
       setCurrentQuestionIndex((i) => i + 1);
       setSelectedAnswer(null);
       setShowResult(false);
+      setTimeRanOut(false);
       // Reset timer for next question
       if (settings.timedMode) {
         setTimeLeft(DIFFICULTY_CONFIG[settings.difficulty].time);
@@ -521,6 +525,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     setCurrentQuestionIndex(0);
     setSelectedAnswer(null);
     setShowResult(false);
+    setTimeRanOut(false);
     setScore(0);
     setQuizComplete(false);
     setStreak(0);
@@ -1106,23 +1111,40 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                               exit={{ opacity: 0, y: -10 }}
                               className="mt-6"
                             >
-                              <motion.div 
+                              <motion.div
                                 className={cn(
                                   "rounded-xl p-4",
-                                  selectedAnswer === currentQuestion.correctIndex
-                                    ? "bg-emerald-500/5 border border-emerald-500/20"
-                                    : "bg-red-500/5 border border-red-500/20"
+                                  timeRanOut
+                                    ? "bg-amber-500/5 border border-amber-500/20"
+                                    : selectedAnswer === currentQuestion.correctIndex
+                                      ? "bg-emerald-500/5 border border-emerald-500/20"
+                                      : "bg-red-500/5 border border-red-500/20"
                                 )}
                                 initial={{ scale: 0.95 }}
                                 animate={{ scale: 1 }}
                               >
                                 <p className={cn(
                                   "mb-1 text-sm font-semibold",
-                                  selectedAnswer === currentQuestion.correctIndex ? "text-emerald-600" : "text-red-500"
+                                  timeRanOut
+                                    ? "text-amber-600"
+                                    : selectedAnswer === currentQuestion.correctIndex 
+                                      ? "text-emerald-600" 
+                                      : "text-red-500"
                                 )}>
-                                  {selectedAnswer === currentQuestion.correctIndex ? "🎉 Correct!" : "❌ Incorrect"}
+                                  {timeRanOut 
+                                    ? "⏱️ Time's up!" 
+                                    : selectedAnswer === currentQuestion.correctIndex 
+                                      ? "🎉 Correct!" 
+                                      : "❌ Incorrect"}
                                 </p>
-                                <p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {timeRanOut && (
+                                    <span className="block mb-1">
+                                      The correct answer was: <strong>{currentQuestion.options[currentQuestion.correctIndex]?.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "")}</strong>
+                                    </span>
+                                  )}
+                                  {currentQuestion.explanation}
+                                </p>
                               </motion.div>
                               <div className="mt-4 flex items-center gap-2">
                                 <Button onClick={nextQuestion} className="flex-1 gap-2 rounded-xl">
