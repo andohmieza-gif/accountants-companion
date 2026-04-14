@@ -696,7 +696,7 @@ export default function Home() {
   };
 
   return (
-    <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-black" : "bg-gradient-to-br from-neutral-50 via-white to-neutral-100")}>
+    <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-background" : "bg-gradient-to-br from-neutral-50 via-white to-neutral-100")}>
       {/* Decorative background elements */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className={cn("absolute -left-40 -top-40 h-80 w-80 rounded-full blur-3xl", theme === "dark" ? "bg-white/[0.02]" : "bg-neutral-500/5")} />
