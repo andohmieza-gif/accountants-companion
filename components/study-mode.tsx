@@ -84,24 +84,41 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const fetchQuiz = useCallback(async (topic: string) => {
     setLoading(true);
     setQuizTopic(topic);
+    setQuizQuestions([]);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setScore(0);
+    setQuizComplete(false);
+
     try {
+      // Fetch first 3 questions quickly
       const res = await fetch("/api/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, batch: "first" }),
       });
       if (res.ok) {
         const data = await res.json();
         setQuizQuestions(data.questions || []);
-        setCurrentQuestionIndex(0);
-        setSelectedAnswer(null);
-        setShowResult(false);
-        setScore(0);
-        setQuizComplete(false);
+        setLoading(false);
+
+        // Fetch remaining 7 questions in background
+        fetch("/api/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, batch: "more" }),
+        })
+          .then((r) => r.json())
+          .then((moreData) => {
+            if (moreData.questions?.length) {
+              setQuizQuestions((prev) => [...prev, ...moreData.questions]);
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.error(e);
-    } finally {
       setLoading(false);
     }
   }, []);
@@ -109,21 +126,38 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const fetchFlashcards = useCallback(async (topic: string) => {
     setLoading(true);
     setFlashcardTopic(topic);
+    setFlashcards([]);
+    setCurrentCardIndex(0);
+    setIsFlipped(false);
+
     try {
+      // Fetch first 3 flashcards quickly
       const res = await fetch("/api/flashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
+        body: JSON.stringify({ topic, batch: "first" }),
       });
       if (res.ok) {
         const data = await res.json();
         setFlashcards(data.flashcards || []);
-        setCurrentCardIndex(0);
-        setIsFlipped(false);
+        setLoading(false);
+
+        // Fetch remaining 7 flashcards in background
+        fetch("/api/flashcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, batch: "more" }),
+        })
+          .then((r) => r.json())
+          .then((moreData) => {
+            if (moreData.flashcards?.length) {
+              setFlashcards((prev) => [...prev, ...moreData.flashcards]);
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.error(e);
-    } finally {
       setLoading(false);
     }
   }, []);
@@ -283,7 +317,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                     {!quizTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Choose a topic to test your knowledge with 5 questions
+                          Choose a topic to test your knowledge with 10 questions
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           {QUIZ_TOPICS.map((topic) => (
