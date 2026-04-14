@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -60,6 +60,27 @@ const FLASHCARD_TOPICS = [
   { name: "Audit Assertions", icon: "✅", count: 10 },
 ];
 
+const QUIZ_LOADING_MESSAGES = [
+  { text: "Brewing some brain teasers...", emoji: "🧪" },
+  { text: "Consulting the accounting gods...", emoji: "🔮" },
+  { text: "Making sure debits equal credits...", emoji: "⚖️" },
+  { text: "Sharpening your pencils...", emoji: "✏️" },
+  { text: "Counting beans (it's what we do)...", emoji: "🫘" },
+  { text: "Balancing the trial balance...", emoji: "📊" },
+  { text: "Double-checking for materiality...", emoji: "🔍" },
+  { text: "Almost there, promise!", emoji: "🏃" },
+];
+
+const FLASHCARD_LOADING_MESSAGES = [
+  { text: "Crafting knowledge nuggets...", emoji: "💎" },
+  { text: "Condensing wisdom...", emoji: "📚" },
+  { text: "Making things stick...", emoji: "🧠" },
+  { text: "Preparing bite-sized brilliance...", emoji: "✨" },
+  { text: "Folding paper virtually...", emoji: "📄" },
+  { text: "Loading accounting wisdom...", emoji: "🦉" },
+  { text: "Almost ready to flip!", emoji: "🃏" },
+];
+
 export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
   const [quizTopic, setQuizTopic] = useState<string | null>(null);
@@ -70,10 +91,23 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [score, setScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
 
   const [flashcardTopic, setFlashcardTopic] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+  // Rotate loading messages
+  useEffect(() => {
+    if (!loading) {
+      setLoadingMsgIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingMsgIndex((i) => i + 1);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [loading]);
   const [isFlipped, setIsFlipped] = useState(false);
 
   const [journalEntries, setJournalEntries] = useState<{ account: string; debit: string; credit: string }[]>([
@@ -313,13 +347,34 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                     ) : loading ? (
                       <div className="flex flex-col items-center justify-center py-16">
                         <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="text-5xl"
                         >
-                          <Loader2 className="h-10 w-10 text-muted-foreground" />
+                          {QUIZ_LOADING_MESSAGES[loadingMsgIndex % QUIZ_LOADING_MESSAGES.length].emoji}
                         </motion.div>
-                        <p className="mt-4 text-muted-foreground">Generating your quiz...</p>
-                        <p className="mt-1 text-xs text-muted-foreground/60">{quizTopic}</p>
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={loadingMsgIndex}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="mt-4 text-muted-foreground"
+                          >
+                            {QUIZ_LOADING_MESSAGES[loadingMsgIndex % QUIZ_LOADING_MESSAGES.length].text}
+                          </motion.p>
+                        </AnimatePresence>
+                        <p className="mt-2 text-xs text-muted-foreground/60">{quizTopic}</p>
+                        <div className="mt-4 flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
+                              animate={{ scale: [1, 1.3, 1] }}
+                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     ) : quizComplete ? (
                       <motion.div
@@ -532,12 +587,34 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                     ) : loading ? (
                       <div className="flex flex-col items-center justify-center py-16">
                         <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          animate={{ rotateY: [0, 180, 360] }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="text-5xl"
                         >
-                          <Loader2 className="h-10 w-10 text-muted-foreground" />
+                          {FLASHCARD_LOADING_MESSAGES[loadingMsgIndex % FLASHCARD_LOADING_MESSAGES.length].emoji}
                         </motion.div>
-                        <p className="mt-4 text-muted-foreground">Creating flashcards...</p>
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={loadingMsgIndex}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="mt-4 text-muted-foreground"
+                          >
+                            {FLASHCARD_LOADING_MESSAGES[loadingMsgIndex % FLASHCARD_LOADING_MESSAGES.length].text}
+                          </motion.p>
+                        </AnimatePresence>
+                        <p className="mt-2 text-xs text-muted-foreground/60">{flashcardTopic}</p>
+                        <div className="mt-4 flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
+                              animate={{ scale: [1, 1.3, 1] }}
+                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     ) : currentCard ? (
                       <div>
