@@ -328,7 +328,9 @@ export default function Home() {
         setIsTranscribing(true);
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const formData = new FormData();
-        formData.append("audio", new File([audioBlob], "recording.webm", { type: mimeType }));
+        // Use correct extension based on mime type
+        const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+        formData.append("audio", new File([audioBlob], `recording.${ext}`, { type: mimeType }));
 
         try {
           const res = await fetch("/api/transcribe", {
