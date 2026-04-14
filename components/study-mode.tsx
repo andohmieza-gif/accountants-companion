@@ -69,6 +69,16 @@ const QUIZ_LOADING_MESSAGES = [
   { text: "Balancing the trial balance...", emoji: "📊" },
   { text: "Double-checking for materiality...", emoji: "🔍" },
   { text: "Almost there, promise!", emoji: "🏃" },
+  { text: "Asking ChatGPT to be nice...", emoji: "🤖" },
+  { text: "Recalculating depreciation...", emoji: "📉" },
+  { text: "Checking if LIFO or FIFO...", emoji: "📦" },
+  { text: "Auditing the question bank...", emoji: "🔎" },
+  { text: "Running internal controls...", emoji: "🎛️" },
+  { text: "Verifying account balances...", emoji: "✅" },
+  { text: "Preparing your challenge...", emoji: "🎯" },
+  { text: "This is gonna be good...", emoji: "😎" },
+  { text: "Loading CPA-level difficulty...", emoji: "💪" },
+  { text: "Calibrating brain cells...", emoji: "🧬" },
 ];
 
 const FLASHCARD_LOADING_MESSAGES = [
@@ -79,7 +89,25 @@ const FLASHCARD_LOADING_MESSAGES = [
   { text: "Folding paper virtually...", emoji: "📄" },
   { text: "Loading accounting wisdom...", emoji: "🦉" },
   { text: "Almost ready to flip!", emoji: "🃏" },
+  { text: "Summarizing the textbook...", emoji: "📖" },
+  { text: "Extracting key concepts...", emoji: "🔑" },
+  { text: "Making memorization easier...", emoji: "🎓" },
+  { text: "Distilling complex topics...", emoji: "⚗️" },
+  { text: "Creating mental shortcuts...", emoji: "🛤️" },
+  { text: "Packaging knowledge pills...", emoji: "💊" },
+  { text: "Your brain will thank you...", emoji: "🙏" },
+  { text: "Study smarter, not harder...", emoji: "🚀" },
+  { text: "Flash! Ahh-ahh...", emoji: "⚡" },
 ];
+
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
 
 export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
@@ -92,17 +120,23 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [quizComplete, setQuizComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
+  const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
 
   const [flashcardTopic, setFlashcardTopic] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
-  // Rotate loading messages
+  // Shuffle and rotate loading messages
   useEffect(() => {
     if (!loading) {
       setLoadingMsgIndex(0);
       return;
     }
+    // Shuffle messages when loading starts
+    setShuffledQuizMsgs(shuffleArray(QUIZ_LOADING_MESSAGES));
+    setShuffledFlashcardMsgs(shuffleArray(FLASHCARD_LOADING_MESSAGES));
+    
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
     }, 2000);
@@ -351,7 +385,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                           transition={{ duration: 1.5, repeat: Infinity }}
                           className="text-5xl"
                         >
-                          {QUIZ_LOADING_MESSAGES[loadingMsgIndex % QUIZ_LOADING_MESSAGES.length].emoji}
+                          {shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].emoji}
                         </motion.div>
                         <AnimatePresence mode="wait">
                           <motion.p
@@ -361,7 +395,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             exit={{ opacity: 0, y: -10 }}
                             className="mt-4 text-muted-foreground"
                           >
-                            {QUIZ_LOADING_MESSAGES[loadingMsgIndex % QUIZ_LOADING_MESSAGES.length].text}
+                            {shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].text}
                           </motion.p>
                         </AnimatePresence>
                         <p className="mt-2 text-xs text-muted-foreground/60">{quizTopic}</p>
@@ -591,7 +625,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                           className="text-5xl"
                         >
-                          {FLASHCARD_LOADING_MESSAGES[loadingMsgIndex % FLASHCARD_LOADING_MESSAGES.length].emoji}
+                          {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
                         </motion.div>
                         <AnimatePresence mode="wait">
                           <motion.p
@@ -601,7 +635,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             exit={{ opacity: 0, y: -10 }}
                             className="mt-4 text-muted-foreground"
                           >
-                            {FLASHCARD_LOADING_MESSAGES[loadingMsgIndex % FLASHCARD_LOADING_MESSAGES.length].text}
+                            {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].text}
                           </motion.p>
                         </AnimatePresence>
                         <p className="mt-2 text-xs text-muted-foreground/60">{flashcardTopic}</p>
