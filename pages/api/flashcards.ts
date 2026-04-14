@@ -5,7 +5,6 @@ const openai = new OpenAI();
 
 type FlashcardsRequestBody = {
   topic?: string;
-  batch?: "first" | "more";
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -14,27 +13,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as FlashcardsRequestBody;
-  const { topic, batch = "first" } = body;
+  const { topic } = body;
 
   if (!topic) {
     return res.status(400).json({ error: "Topic is required" });
   }
-
-  const count = batch === "first" ? 3 : 7;
-  const prompt = batch === "first"
-    ? `Generate ${count} concise accounting flashcards. Return JSON: {"flashcards":[{"front":"term or question","back":"answer"}]}`
-    : `Generate ${count} MORE different accounting flashcards (don't repeat). Return JSON: {"flashcards":[{"front":"term or question","back":"answer"}]}`;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: prompt },
+        { 
+          role: "system", 
+          content: `Generate 10 concise accounting flashcards. Return JSON: {"flashcards":[{"front":"term or question","back":"answer"}]}` 
+        },
         { role: "user", content: topic },
       ],
       temperature: 0.8,
-      max_tokens: batch === "first" ? 600 : 1200,
+      max_tokens: 2000,
     });
 
     const content = response.choices[0]?.message?.content || '{"flashcards":[]}';

@@ -92,33 +92,18 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     setQuizComplete(false);
 
     try {
-      // Fetch first 3 questions quickly
       const res = await fetch("/api/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, batch: "first" }),
+        body: JSON.stringify({ topic }),
       });
       if (res.ok) {
         const data = await res.json();
         setQuizQuestions(data.questions || []);
-        setLoading(false);
-
-        // Fetch remaining 7 questions in background
-        fetch("/api/quiz", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, batch: "more" }),
-        })
-          .then((r) => r.json())
-          .then((moreData) => {
-            if (moreData.questions?.length) {
-              setQuizQuestions((prev) => [...prev, ...moreData.questions]);
-            }
-          })
-          .catch(() => {});
       }
     } catch (e) {
       console.error(e);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -131,33 +116,18 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     setIsFlipped(false);
 
     try {
-      // Fetch first 3 flashcards quickly
       const res = await fetch("/api/flashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, batch: "first" }),
+        body: JSON.stringify({ topic }),
       });
       if (res.ok) {
         const data = await res.json();
         setFlashcards(data.flashcards || []);
-        setLoading(false);
-
-        // Fetch remaining 7 flashcards in background
-        fetch("/api/flashcards", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, batch: "more" }),
-        })
-          .then((r) => r.json())
-          .then((moreData) => {
-            if (moreData.flashcards?.length) {
-              setFlashcards((prev) => [...prev, ...moreData.flashcards]);
-            }
-          })
-          .catch(() => {});
       }
     } catch (e) {
       console.error(e);
+    } finally {
       setLoading(false);
     }
   }, []);
