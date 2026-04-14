@@ -630,32 +630,38 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                   <p className="text-sm text-muted-foreground">Master accounting concepts</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {/* Stats button */}
                 <button
-                  onClick={() => setShowStats(!showStats)}
+                  onClick={() => {
+                    setShowStats(!showStats);
+                    setShowSettings(false);
+                  }}
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                     showStats
                       ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
                       : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
                   )}
                   title="View Stats"
                 >
-                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </button>
                 {/* Settings button */}
                 <button
-                  onClick={() => setShowSettings(!showSettings)}
+                  onClick={() => {
+                    setShowSettings(!showSettings);
+                    setShowStats(false);
+                  }}
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
                     showSettings
                       ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
                       : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
                   )}
                   title="Settings"
                 >
-                  <Settings className="h-5 w-5 text-muted-foreground" />
+                  <Settings className="h-4 w-4 text-muted-foreground" />
                 </button>
                 {/* Close button */}
                 <button
@@ -670,151 +676,139 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
               </div>
             </div>
 
-            {/* Settings Panel */}
-            <AnimatePresence>
+            {/* Settings/Stats Panel - Only one shows at a time */}
+            <AnimatePresence mode="wait">
               {showSettings && (
                 <motion.div
+                  key="settings"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   className="overflow-hidden border-b border-border/40"
                 >
-                  <div className="px-6 py-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {settings.soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-                        <span className="text-sm font-medium">Sound Effects</span>
+                  <div className="px-6 py-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-3">
+                          {settings.soundEnabled ? <Volume2 className="h-4 w-4 text-muted-foreground" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                          <span className="text-sm">Sound Effects</span>
+                        </div>
+                        <button
+                          onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
+                          className={cn(
+                            "relative h-6 w-10 rounded-full transition-colors",
+                            settings.soundEnabled ? "bg-emerald-500" : theme === "dark" ? "bg-muted" : "bg-neutral-200"
+                          )}
+                        >
+                          <motion.div
+                            className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm"
+                            animate={{ left: settings.soundEnabled ? 20 : 4 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
-                        className={cn(
-                          "relative h-6 w-11 rounded-full transition-colors",
-                          settings.soundEnabled ? "bg-emerald-500" : theme === "dark" ? "bg-card" : "bg-neutral-200"
-                        )}
-                      >
-                        <motion.div
-                          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow"
-                          animate={{ left: settings.soundEnabled ? 24 : 4 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Clock className="h-5 w-5" />
-                        <span className="text-sm font-medium">Timed Mode</span>
+                      
+                      <div className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-3">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Timed Mode</span>
+                        </div>
+                        <button
+                          onClick={() => updateSettings({ timedMode: !settings.timedMode })}
+                          className={cn(
+                            "relative h-6 w-10 rounded-full transition-colors",
+                            settings.timedMode ? "bg-emerald-500" : theme === "dark" ? "bg-muted" : "bg-neutral-200"
+                          )}
+                        >
+                          <motion.div
+                            className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm"
+                            animate={{ left: settings.timedMode ? 20 : 4 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => updateSettings({ timedMode: !settings.timedMode })}
-                        className={cn(
-                          "relative h-6 w-11 rounded-full transition-colors",
-                          settings.timedMode ? "bg-emerald-500" : theme === "dark" ? "bg-card" : "bg-neutral-200"
-                        )}
-                      >
-                        <motion.div
-                          className="absolute top-1 h-4 w-4 rounded-full bg-white shadow"
-                          animate={{ left: settings.timedMode ? 24 : 4 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                      </button>
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Zap className="h-5 w-5" />
-                        <span className="text-sm font-medium">Difficulty</span>
-                      </div>
-                      <div className="flex gap-1 rounded-lg bg-muted p-1">
-                        {(["easy", "medium", "hard"] as Difficulty[]).map((diff) => (
-                          <button
-                            key={diff}
-                            onClick={() => updateSettings({ difficulty: diff })}
-                            className={cn(
-                              "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                              settings.difficulty === diff
-                                ? "bg-background shadow"
-                                : "text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            {DIFFICULTY_CONFIG[diff].label}
-                          </button>
-                        ))}
+                      <div className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-3">
+                          <Zap className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Difficulty</span>
+                        </div>
+                        <div className={cn(
+                          "flex gap-0.5 rounded-lg p-0.5",
+                          theme === "dark" ? "bg-muted" : "bg-neutral-100"
+                        )}>
+                          {(["easy", "medium", "hard"] as Difficulty[]).map((diff) => (
+                            <button
+                              key={diff}
+                              onClick={() => updateSettings({ difficulty: diff })}
+                              className={cn(
+                                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                                settings.difficulty === diff
+                                  ? "bg-background shadow-sm"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              {DIFFICULTY_CONFIG[diff].label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     
                     {settings.timedMode && (
-                      <p className="text-xs text-muted-foreground">
-                        ⏱️ {DIFFICULTY_CONFIG[settings.difficulty].time} seconds per question
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        ⏱️ {DIFFICULTY_CONFIG[settings.difficulty].time}s per question
                       </p>
                     )}
                   </div>
                 </motion.div>
               )}
-            </AnimatePresence>
 
-            {/* Stats Panel */}
-            <AnimatePresence>
               {showStats && (
                 <motion.div
+                  key="stats"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   className="overflow-hidden border-b border-border/40"
                 >
                   <div className="px-6 py-4">
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <div className="grid grid-cols-4 gap-2">
                       <div className={cn(
-                        "rounded-xl p-3 text-center",
-                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                        "rounded-lg p-2 text-center",
+                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
                       )}>
-                        <p className="text-2xl font-bold">{stats.totalQuizzes}</p>
-                        <p className="text-xs text-muted-foreground">Quizzes</p>
+                        <p className="text-xl font-bold">{stats.totalQuizzes}</p>
+                        <p className="text-[10px] text-muted-foreground">Quizzes</p>
                       </div>
                       <div className={cn(
-                        "rounded-xl p-3 text-center",
-                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                        "rounded-lg p-2 text-center",
+                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
                       )}>
-                        <p className="text-2xl font-bold">
+                        <p className="text-xl font-bold">
                           {stats.totalQuestions > 0 
                             ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100) 
                             : 0}%
                         </p>
-                        <p className="text-xs text-muted-foreground">Accuracy</p>
+                        <p className="text-[10px] text-muted-foreground">Accuracy</p>
                       </div>
                       <div className={cn(
-                        "rounded-xl p-3 text-center",
-                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                        "rounded-lg p-2 text-center",
+                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
                       )}>
-                        <p className="text-2xl font-bold flex items-center justify-center gap-1">
-                          {stats.bestStreak}
-                          {stats.bestStreak >= 5 && <Flame className="h-5 w-5 text-orange-500" />}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Best Streak</p>
+                        <p className="text-xl font-bold">{stats.bestStreak}</p>
+                        <p className="text-[10px] text-muted-foreground">Best Streak</p>
                       </div>
                       <div className={cn(
-                        "rounded-xl p-3 text-center",
-                        theme === "dark" ? "bg-card" : "bg-neutral-50"
+                        "rounded-lg p-2 text-center",
+                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
                       )}>
-                        <p className="text-2xl font-bold">{stats.totalFlashcards}</p>
-                        <p className="text-xs text-muted-foreground">Cards Reviewed</p>
+                        <p className="text-xl font-bold">{stats.totalFlashcards}</p>
+                        <p className="text-[10px] text-muted-foreground">Cards</p>
                       </div>
                     </div>
-                    {Object.keys(stats.topicStats).length > 0 && (
-                      <div className="mt-4">
-                        <p className="mb-2 text-xs font-medium text-muted-foreground">Topic Performance</p>
-                        <div className="space-y-2">
-                          {Object.entries(stats.topicStats).slice(0, 3).map(([topic, data]) => (
-                            <div key={topic} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{topic}</span>
-                              <span className="font-medium">
-                                {Math.round((data.correct / data.total) * 100)}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </motion.div>
               )}
