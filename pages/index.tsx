@@ -20,6 +20,9 @@ import {
   User,
   Bot,
   ArrowUp,
+  Mic,
+  MicOff,
+  BookOpen,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -30,6 +33,7 @@ import { Sidebar, type Conversation, type ChatMessage } from "@/components/sideb
 import { RatingModal } from "@/components/rating-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { CalculatorWidget } from "@/components/calculator-widget";
+import { StudyMode } from "@/components/study-mode";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "accountants-companion-v2";
@@ -216,6 +220,8 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>("light");
   const [ratingShownThisSession, setRatingShownThisSession] = useState(false);
   const [currentFollowups, setCurrentFollowups] = useState<string[]>([]);
+  const [showStudyMode, setShowStudyMode] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -288,6 +294,38 @@ export default function Home() {
   const scrollToTop = useCallback(() => {
     bottomRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  const toggleVoiceInput = useCallback(() => {
+    if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
+      setToast("Voice input not supported in this browser");
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => {
+      setIsListening(false);
+      setToast("Voice input failed");
+    };
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput((prev) => prev + (prev ? " " : "") + transcript);
+      inputRef.current?.focus();
+    };
+
+    recognition.start();
+  }, [isListening]);
 
   useEffect(() => {
     scrollToBottom();
@@ -735,6 +773,17 @@ export default function Home() {
             </div>
 
             <div className="flex shrink-0 items-center gap-0.5">
+              {/* Study Mode */}
+              <button
+                type="button"
+                onClick={() => setShowStudyMode(true)}
+                className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Study Mode"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">Study</span>
+              </button>
+
               {/* Export dropdown */}
               <div className="relative">
                 <button
@@ -1075,6 +1124,23 @@ export default function Home() {
                     "max-h-[150px] min-h-[40px]"
                   )}
                 />
+                {/* Voice input */}
+                <motion.button
+                  type="button"
+                  onClick={toggleVoiceInput}
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                    isListening
+                      ? "bg-red-500 text-white"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  title={isListening ? "Stop listening" : "Voice input"}
+                >
+                  {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                </motion.button>
+
                 {loading ? (
                   <motion.button
                     type="button"
@@ -1161,6 +1227,9 @@ export default function Home() {
 
       {/* Calculator Widget */}
       <CalculatorWidget theme={theme} />
+
+      {/* Study Mode */}
+      <StudyMode isOpen={showStudyMode} onClose={() => setShowStudyMode(false)} theme={theme} />
 
       {/* Toast */}
       <AnimatePresence>
