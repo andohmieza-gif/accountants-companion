@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "accountants-companion-v2";
 const RATING_KEY = "accountants-companion-rated";
+const RATING_DISMISSED_KEY = "accountants-companion-rating-dismissed";
 const MESSAGE_COUNT_KEY = "accountants-companion-msg-count";
 const THEME_KEY = "accountants-companion-theme";
 
@@ -268,12 +269,13 @@ export default function Home() {
     }
   }, [conversations, hydrated]);
 
-  // Check if should show rating - only once per session, after 5 messages
+  // Check if should show rating - only once, after 5 messages, if not rated or dismissed
   useEffect(() => {
     if (!hydrated || ratingShownThisSession) return;
     try {
       const hasRated = localStorage.getItem(RATING_KEY) === "true";
-      if (hasRated) return;
+      const hasDismissed = localStorage.getItem(RATING_DISMISSED_KEY) === "true";
+      if (hasRated || hasDismissed) return;
 
       const countRaw = localStorage.getItem(MESSAGE_COUNT_KEY);
       const count = countRaw ? parseInt(countRaw, 10) : 0;
@@ -1260,7 +1262,17 @@ export default function Home() {
       </main>
 
       {/* Rating Modal */}
-      <RatingModal open={showRating} onOpenChange={setShowRating} onComplete={handleRatingComplete} />
+      <RatingModal 
+        open={showRating} 
+        onOpenChange={(open) => {
+          setShowRating(open);
+          if (!open) {
+            // User dismissed the modal - don't show again
+            try { localStorage.setItem(RATING_DISMISSED_KEY, "true"); } catch {}
+          }
+        }} 
+        onComplete={handleRatingComplete} 
+      />
 
       {/* Delete confirmation */}
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
