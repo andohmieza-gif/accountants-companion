@@ -285,6 +285,10 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
+  const scrollToTop = useCallback(() => {
+    bottomRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [chat, loading, activeBotId, scrollToBottom]);
@@ -356,6 +360,7 @@ export default function Home() {
     if (active && active.messages.length === 0) {
       setSidebarOpen(false);
       setInput("");
+      scrollToTop();
       return active.id;
     }
 
@@ -373,8 +378,10 @@ export default function Home() {
     setActiveId(newConv.id);
     setInput("");
     setSidebarOpen(false);
+    setCurrentFollowups([]);
+    scrollToTop();
     return newConv.id;
-  }, [conversations, activeId]);
+  }, [conversations, activeId, scrollToTop]);
 
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
