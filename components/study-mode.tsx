@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -17,9 +17,41 @@ import {
   Plus,
   Trash2,
   ArrowRight,
+  Flame,
+  Zap,
+  Target,
+  Award,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// Confetti component
+function Confetti({ active }: { active: boolean }) {
+  if (!active) return null;
+  
+  const particles = Array.from({ length: 50 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    delay: Math.random() * 0.5,
+    duration: 1 + Math.random() * 1,
+    color: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)],
+  }));
+
+  return (
+    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          initial={{ y: -20, x: `${p.x}vw`, opacity: 1, scale: 1 }}
+          animate={{ y: '100vh', opacity: 0, scale: 0, rotate: 360 * (Math.random() > 0.5 ? 1 : -1) }}
+          transition={{ duration: p.duration, delay: p.delay, ease: 'linear' }}
+          className="absolute h-3 w-3 rounded-full"
+          style={{ backgroundColor: p.color }}
+        />
+      ))}
+    </div>
+  );
+}
 
 type Tab = "quiz" | "flashcards" | "journal";
 
@@ -122,10 +154,15 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
   const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
+  const [streak, setStreak] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [correctFlash, setCorrectFlash] = useState(false);
 
   const [flashcardTopic, setFlashcardTopic] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Shuffle and rotate loading messages
   useEffect(() => {
@@ -204,10 +241,55 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     if (showResult) return;
     setSelectedAnswer(index);
     setShowResult(true);
-    if (index === quizQuestions[currentQuestionIndex]?.correctIndex) {
+    const isCorrect = index === quizQuestions[currentQuestionIndex]?.correctIndex;
+    if (isCorrect) {
       setScore((s) => s + 1);
+      setStreak((s) => s + 1);
+      setCorrectFlash(true);
+      setTimeout(() => setCorrectFlash(false), 500);
+      // Confetti for streaks of 3+
+      if (streak >= 2) {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2000);
+      }
+    } else {
+      setStreak(0);
     }
   };
+
+  // Keyboard shortcuts for quiz
+  useEffect(() => {
+    const question = quizQuestions[currentQuestionIndex];
+    if (!isOpen || activeTab !== "quiz" || !question || showResult || loading) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key;
+      if (key >= "1" && key <= "4") {
+        const index = parseInt(key) - 1;
+        if (index < question.options.length) {
+          handleAnswerSelect(index);
+        }
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, activeTab, quizQuestions, currentQuestionIndex, showResult, loading]);
+
+  // Space/Enter to continue after answer
+  useEffect(() => {
+    if (!isOpen || activeTab !== "quiz" || !showResult) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        nextQuestion();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, activeTab, showResult]);
 
   const nextQuestion = () => {
     if (currentQuestionIndex < quizQuestions.length - 1) {
@@ -227,7 +309,30 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     setShowResult(false);
     setScore(0);
     setQuizComplete(false);
+    setStreak(0);
   };
+
+  // Keyboard shortcuts for flashcards
+  useEffect(() => {
+    const card = flashcards[currentCardIndex];
+    if (!isOpen || activeTab !== "flashcards" || !card || loading) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        e.preventDefault();
+        setIsFlipped((f) => !f);
+      } else if (e.key === "ArrowRight" && currentCardIndex < flashcards.length - 1) {
+        setCurrentCardIndex((i) => i + 1);
+        setIsFlipped(false);
+      } else if (e.key === "ArrowLeft" && currentCardIndex > 0) {
+        setCurrentCardIndex((i) => i - 1);
+        setIsFlipped(false);
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, activeTab, flashcards, currentCardIndex, loading]);
 
   const addJournalRow = () => {
     setJournalEntries([...journalEntries, { account: "", debit: "", credit: "" }]);
@@ -411,60 +516,73 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : quizComplete ? (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex flex-col items-center py-8 text-center"
-                      >
+                      <>
+                        <Confetti active={score >= quizQuestions.length * 0.7} />
                         <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", delay: 0.1, bounce: 0.5 }}
-                          className={cn(
-                            "mb-6 flex h-20 w-20 items-center justify-center rounded-full",
-                            score === quizQuestions.length
-                              ? "bg-emerald-500/10"
-                              : score >= quizQuestions.length / 2
-                              ? "bg-amber-500/10"
-                              : "bg-muted"
-                          )}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex flex-col items-center py-8 text-center"
                         >
-                          {score === quizQuestions.length ? (
-                            <Trophy className="h-10 w-10 text-emerald-500" />
-                          ) : (
-                            <Sparkles className="h-10 w-10 text-amber-500" />
-                          )}
+                          <motion.div
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: "spring", delay: 0.1, bounce: 0.5 }}
+                            className={cn(
+                              "mb-6 flex h-24 w-24 items-center justify-center rounded-full",
+                              score === quizQuestions.length
+                                ? "bg-gradient-to-br from-emerald-500/20 to-emerald-500/5"
+                                : score >= quizQuestions.length / 2
+                                ? "bg-gradient-to-br from-amber-500/20 to-amber-500/5"
+                                : "bg-muted"
+                            )}
+                          >
+                            {score === quizQuestions.length ? (
+                              <Trophy className="h-12 w-12 text-emerald-500" />
+                            ) : score >= quizQuestions.length * 0.7 ? (
+                              <Award className="h-12 w-12 text-amber-500" />
+                            ) : (
+                              <Target className="h-12 w-12 text-muted-foreground" />
+                            )}
+                          </motion.div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <p className="text-6xl font-bold tracking-tight">
+                              {score}<span className="text-3xl text-muted-foreground">/{quizQuestions.length}</span>
+                            </p>
+                            <p className="mt-2 text-sm font-medium text-muted-foreground">
+                              {Math.round((score / quizQuestions.length) * 100)}% correct
+                            </p>
+                            <p className="mt-4 text-lg">
+                              {score === quizQuestions.length
+                                ? "🎉 Perfect score! You're a legend!"
+                                : score >= quizQuestions.length * 0.8
+                                ? "🔥 Excellent work! Almost perfect!"
+                                : score >= quizQuestions.length / 2
+                                ? "💪 Good job! Keep practicing."
+                                : "📚 Time to hit the books!"}
+                            </p>
+                          </motion.div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="mt-8 flex gap-3"
+                          >
+                            <Button onClick={resetQuiz} size="lg" className="gap-2 rounded-xl px-6">
+                              <RotateCcw className="h-4 w-4" />
+                              Try Another Topic
+                            </Button>
+                          </motion.div>
                         </motion.div>
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <p className="text-5xl font-bold">
-                            {score}<span className="text-2xl text-muted-foreground">/{quizQuestions.length}</span>
-                          </p>
-                          <p className="mt-3 text-lg text-muted-foreground">
-                            {score === quizQuestions.length
-                              ? "Perfect score! Outstanding!"
-                              : score >= quizQuestions.length / 2
-                              ? "Good work! Keep practicing."
-                              : "Keep studying, you'll improve!"}
-                          </p>
-                        </motion.div>
-                        <motion.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 0.4 }}
-                          className="mt-8"
-                        >
-                          <Button onClick={resetQuiz} size="lg" className="gap-2 rounded-xl px-6">
-                            <RotateCcw className="h-4 w-4" />
-                            Try Another Topic
-                          </Button>
-                        </motion.div>
-                      </motion.div>
+                      </>
                     ) : currentQuestion ? (
-                      <div>
+                      <div className={cn(correctFlash && "animate-pulse")}>
+                        {/* Confetti for streaks */}
+                        <Confetti active={showConfetti} />
+                        
                         {/* Progress bar */}
                         <div className="mb-6">
                           <div className="mb-2 flex items-center justify-between text-sm">
@@ -478,14 +596,30 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             <span className="text-muted-foreground">
                               <span className="font-medium text-foreground">{currentQuestionIndex + 1}</span> of {quizQuestions.length}
                             </span>
-                            <span className="font-medium">{score} pts</span>
+                            <div className="flex items-center gap-3">
+                              {/* Streak indicator */}
+                              {streak >= 2 && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-500"
+                                >
+                                  <Flame className="h-3.5 w-3.5" />
+                                  <span className="text-xs font-bold">{streak}</span>
+                                </motion.div>
+                              )}
+                              <span className="font-medium">{score} pts</span>
+                            </div>
                           </div>
                           <div className={cn(
                             "h-2 overflow-hidden rounded-full",
                             theme === "dark" ? "bg-card" : "bg-neutral-100"
                           )}>
                             <motion.div
-                              className="h-full rounded-full bg-foreground"
+                              className={cn(
+                                "h-full rounded-full",
+                                streak >= 3 ? "bg-gradient-to-r from-orange-500 to-amber-500" : "bg-foreground"
+                              )}
                               initial={{ width: 0 }}
                               animate={{ width: `${progressPercent}%` }}
                               transition={{ duration: 0.3 }}
@@ -525,7 +659,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                                 whileTap={!showResult ? { scale: 0.99 } : {}}
                               >
                                 <span className={cn(
-                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium",
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium transition-all",
                                   showResult
                                     ? isCorrect
                                       ? "bg-emerald-500 text-white"
@@ -539,7 +673,12 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                                   ) : showResult && isSelected ? (
                                     <XCircle className="h-4 w-4" />
                                   ) : (
-                                    letter
+                                    <span className="relative">
+                                      {letter}
+                                      <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground/50 hidden sm:block">
+                                        {i + 1}
+                                      </span>
+                                    </span>
                                   )}
                                 </span>
                                 <span className="flex-1">{cleanOption}</span>
@@ -556,22 +695,36 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                               exit={{ opacity: 0, y: -10 }}
                               className="mt-6"
                             >
-                              <div className={cn(
-                                "rounded-xl p-4",
-                                theme === "dark" ? "bg-card" : "bg-neutral-50"
-                              )}>
-                                <p className="mb-1 text-sm font-medium">
-                                  {selectedAnswer === currentQuestion.correctIndex ? "✓ Correct!" : "✗ Incorrect"}
+                              <motion.div 
+                                className={cn(
+                                  "rounded-xl p-4",
+                                  selectedAnswer === currentQuestion.correctIndex
+                                    ? "bg-emerald-500/5 border border-emerald-500/20"
+                                    : "bg-red-500/5 border border-red-500/20"
+                                )}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                              >
+                                <p className={cn(
+                                  "mb-1 text-sm font-semibold",
+                                  selectedAnswer === currentQuestion.correctIndex ? "text-emerald-600" : "text-red-500"
+                                )}>
+                                  {selectedAnswer === currentQuestion.correctIndex ? "🎉 Correct!" : "❌ Incorrect"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">{currentQuestion.explanation}</p>
+                              </motion.div>
+                              <div className="mt-4 flex items-center gap-2">
+                                <Button onClick={nextQuestion} className="flex-1 gap-2 rounded-xl">
+                                  {currentQuestionIndex < quizQuestions.length - 1 ? (
+                                    <>Continue <ArrowRight className="h-4 w-4" /></>
+                                  ) : (
+                                    <>See Results <Trophy className="h-4 w-4" /></>
+                                  )}
+                                </Button>
+                                <span className="hidden text-xs text-muted-foreground/50 sm:block">
+                                  Press Space
+                                </span>
                               </div>
-                              <Button onClick={nextQuestion} className="mt-4 w-full gap-2 rounded-xl">
-                                {currentQuestionIndex < quizQuestions.length - 1 ? (
-                                  <>Continue <ArrowRight className="h-4 w-4" /></>
-                                ) : (
-                                  <>See Results <Trophy className="h-4 w-4" /></>
-                                )}
-                              </Button>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -717,12 +870,12 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                               </AnimatePresence>
                             </div>
                             <p className="absolute bottom-4 left-0 right-0 text-center text-xs text-muted-foreground">
-                              Tap to flip
+                              Tap to flip <span className="hidden sm:inline">or press Space</span>
                             </p>
                           </motion.div>
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex items-center gap-3">
                           <Button
                             variant="outline"
                             className="flex-1 rounded-xl"
@@ -733,8 +886,11 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             }}
                           >
                             <ChevronLeft className="mr-1 h-4 w-4" />
-                            Previous
+                            <span className="hidden sm:inline">Previous</span>
                           </Button>
+                          <span className="hidden text-xs text-muted-foreground/50 sm:block">
+                            ← →
+                          </span>
                           <Button
                             className="flex-1 rounded-xl"
                             disabled={currentCardIndex === flashcards.length - 1}
@@ -743,7 +899,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                               setIsFlipped(false);
                             }}
                           >
-                            Next
+                            <span className="hidden sm:inline">Next</span>
                             <ChevronRight className="ml-1 h-4 w-4" />
                           </Button>
                         </div>
