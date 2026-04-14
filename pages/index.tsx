@@ -698,13 +698,7 @@ export default function Home() {
   };
 
   return (
-    <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-background" : "bg-gradient-to-br from-neutral-50 via-white to-neutral-100")}>
-      {/* Decorative background elements */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className={cn("absolute -left-40 -top-40 h-80 w-80 rounded-full blur-3xl", theme === "dark" ? "bg-white/[0.02]" : "bg-neutral-500/5")} />
-        <div className={cn("absolute -bottom-40 -right-40 h-96 w-96 rounded-full blur-3xl", theme === "dark" ? "bg-gradient-to-br from-emerald-600/20 to-cyan-600/20" : "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10")} />
-        <div className={cn("absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl", theme === "dark" ? "bg-white/[0.01]" : "bg-neutral-500/[0.03]")} />
-      </div>
+    <div className={cn("flex h-screen overflow-hidden", theme === "dark" ? "bg-background" : "bg-neutral-50")}>
 
       {/* Sidebar */}
       <Sidebar
@@ -724,56 +718,49 @@ export default function Home() {
       {/* Main content */}
       <main className="relative flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className={cn("relative z-10 border-b border-border/40 px-4 py-4 backdrop-blur-xl md:px-8", theme === "dark" ? "bg-card/60" : "bg-white/60")}
+        <header
+          className={cn(
+            "relative z-10 border-b px-4 py-3 md:px-6",
+            theme === "dark" ? "border-border/50 bg-background" : "border-border/40 bg-white"
+          )}
         >
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-3 pl-12 lg:pl-0">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.2, bounce: 0.5 }}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground shadow-lg shadow-black/20"
-              >
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
-              </motion.div>
+          <div className="mx-auto flex max-w-4xl items-center justify-between">
+            <div className="flex min-w-0 items-center gap-2.5 pl-12 lg:pl-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground">
+                <Sparkles className="h-4 w-4 text-background" />
+              </div>
               <div className="min-w-0">
-                <h1 className="truncate text-lg font-semibold tracking-tight">The Accountant&apos;s Companion</h1>
-                <p className="text-xs text-muted-foreground">
-                  <span className="hidden sm:inline">Press / to focus · ⌘N new chat</span>
-                  <span className="sm:hidden">AI accounting assistant</span>
-                </p>
+                <h1 className="truncate text-base font-semibold">The Accountant&apos;s Companion</h1>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-0.5">
               {/* Export dropdown */}
               <div className="relative">
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-muted-foreground"
                   disabled={!activeConversation || activeConversation.messages.length === 0}
                   onClick={() => setShowExportMenu((v) => !v)}
-                  title="Export conversation"
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                    !activeConversation || activeConversation.messages.length === 0
+                      ? "text-muted-foreground/40 cursor-not-allowed"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  title="Export"
                 >
                   <Download className="h-4 w-4" />
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
+                </button>
                 <AnimatePresence>
                   {showExportMenu && (
                     <motion.div
                       initial={{ opacity: 0, y: -4, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
+                      transition={{ duration: 0.12 }}
                       className={cn(
-                        "absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-xl border p-1 shadow-xl backdrop-blur-xl",
-                        theme === "dark" ? "border-border/60 bg-card/95" : "border-border/40 bg-white/95"
+                        "absolute right-0 top-full z-20 mt-1.5 w-36 overflow-hidden rounded-lg border p-1 shadow-lg",
+                        theme === "dark" ? "border-border bg-card" : "border-border/60 bg-white"
                       )}
                     >
                       <button
@@ -782,10 +769,10 @@ export default function Home() {
                           handleExportMarkdown();
                           setShowExportMenu(false);
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted"
                       >
-                        <FileText className="h-4 w-4" />
-                        Markdown (.md)
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        Markdown
                       </button>
                       <button
                         type="button"
@@ -793,27 +780,36 @@ export default function Home() {
                           handleExportPdf();
                           setShowExportMenu(false);
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted"
                       >
-                        <Download className="h-4 w-4" />
-                        PDF (.pdf)
+                        <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                        PDF
                       </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowRating(true)} title="Rate this app">
+              <button
+                type="button"
+                onClick={() => setShowRating(true)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title="Rate"
+              >
                 <Star className="h-4 w-4" />
-                <span className="hidden lg:inline">Rate</span>
-              </Button>
+              </button>
 
-              <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground" onClick={toggleTheme} title={theme === "dark" ? "Light mode" : "Dark mode"}>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                title={theme === "dark" ? "Light mode" : "Dark mode"}
+              >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
+              </button>
             </div>
           </div>
-        </motion.header>
+        </header>
 
         {/* Chat area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
@@ -823,34 +819,27 @@ export default function Home() {
                 {chat.length === 0 ? (
                   <motion.div
                     key="empty"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="flex min-h-[50vh] flex-col items-center justify-center text-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex min-h-[60vh] flex-col items-center justify-center pt-8"
                   >
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", delay: 0.1, bounce: 0.5 }}
-                      className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 shadow-inner"
-                    >
-                      <Sparkles className="h-10 w-10 text-muted-foreground" />
-                    </motion.div>
-                    <h2 className="mb-2 text-xl font-semibold">How can I help you today?</h2>
-                    <p className="max-w-md text-sm text-muted-foreground">
-                      Ask me anything about GAAP, IFRS, audit procedures, tax regulations, CPA exam prep, journal
-                      entries, and more.
-                    </p>
+                    <div className="text-center">
+                      <h2 className="text-2xl font-semibold tracking-tight">What can I help with?</h2>
+                      <p className="mt-2 text-muted-foreground">
+                        Ask about accounting standards, journal entries, or CPA exam topics
+                      </p>
+                    </div>
 
-                    <div className="mt-8 w-full max-w-2xl space-y-4">
+                    <div className="mt-10 w-full max-w-2xl space-y-6">
                       {TEMPLATES.map((section, sectionIdx) => (
                         <motion.div
                           key={section.category}
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.15 + sectionIdx * 0.1 }}
+                          transition={{ delay: 0.1 + sectionIdx * 0.08 }}
                         >
-                          <p className="mb-2 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+                          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/60">
                             {section.category}
                           </p>
                           <div className="grid gap-2 sm:grid-cols-3">
@@ -860,13 +849,13 @@ export default function Home() {
                                 type="button"
                                 onClick={() => setInput(suggestion)}
                                 className={cn(
-                                  "rounded-xl border px-3 py-2.5 text-left text-sm shadow-sm backdrop-blur transition-all hover:shadow-md",
+                                  "group rounded-xl border px-4 py-3 text-left text-sm transition-all",
                                   theme === "dark"
-                                    ? "border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:bg-card"
-                                    : "border-border/60 bg-white/60 text-muted-foreground hover:border-primary/30 hover:bg-white"
+                                    ? "border-border/60 bg-card hover:border-foreground/20 hover:bg-card/80"
+                                    : "border-border/50 bg-white hover:border-foreground/20 hover:shadow-md"
                                 )}
                               >
-                                {suggestion}
+                                <span className="text-foreground/80 group-hover:text-foreground">{suggestion}</span>
                               </button>
                             ))}
                           </div>
