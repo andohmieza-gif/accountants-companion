@@ -691,12 +691,12 @@ export default function Home() {
   };
 
   return (
-    <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" : "bg-gradient-to-br from-slate-50 via-white to-slate-100")}>
+    <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-black" : "bg-gradient-to-br from-neutral-50 via-white to-neutral-100")}>
       {/* Decorative background elements */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className={cn("absolute -left-40 -top-40 h-80 w-80 rounded-full blur-3xl", theme === "dark" ? "bg-gradient-to-br from-blue-600/20 to-purple-600/20" : "bg-gradient-to-br from-blue-500/10 to-purple-500/10")} />
+        <div className={cn("absolute -left-40 -top-40 h-80 w-80 rounded-full blur-3xl", theme === "dark" ? "bg-white/[0.02]" : "bg-neutral-500/5")} />
         <div className={cn("absolute -bottom-40 -right-40 h-96 w-96 rounded-full blur-3xl", theme === "dark" ? "bg-gradient-to-br from-emerald-600/20 to-cyan-600/20" : "bg-gradient-to-br from-emerald-500/10 to-cyan-500/10")} />
-        <div className={cn("absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl", theme === "dark" ? "bg-gradient-to-br from-amber-600/10 to-orange-600/10" : "bg-gradient-to-br from-amber-500/5 to-orange-500/5")} />
+        <div className={cn("absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl", theme === "dark" ? "bg-white/[0.01]" : "bg-neutral-500/[0.03]")} />
       </div>
 
       {/* Sidebar */}
