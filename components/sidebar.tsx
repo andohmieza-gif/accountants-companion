@@ -192,7 +192,7 @@ function SidebarContent({
                 <div
                   className={cn(
                     "flex items-stretch gap-0.5 rounded-xl p-1 transition-colors",
-                    activeId === conv.id ? "bg-primary/[0.08] ring-1 ring-primary/20" : "hover:bg-muted/50"
+                    activeId === conv.id ? "bg-muted ring-1 ring-border" : "hover:bg-muted/50"
                   )}
                 >
                   <button
@@ -204,7 +204,7 @@ function SidebarContent({
                       className={cn(
                         "mt-0.5 shrink-0 rounded-lg p-1.5 transition-colors",
                         activeId === conv.id
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-foreground text-background"
                           : "bg-muted text-muted-foreground"
                       )}
                     >

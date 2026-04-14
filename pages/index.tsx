@@ -762,7 +762,7 @@ export default function Home() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: 0.2, bounce: 0.5 }}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground shadow-lg shadow-black/20"
               >
                 <Sparkles className="h-5 w-5 text-primary-foreground" />
               </motion.div>
@@ -860,7 +860,7 @@ export default function Home() {
                       transition={{ type: "spring", delay: 0.1, bounce: 0.5 }}
                       className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 shadow-inner"
                     >
-                      <Sparkles className="h-10 w-10 text-primary/70" />
+                      <Sparkles className="h-10 w-10 text-muted-foreground" />
                     </motion.div>
                     <h2 className="mb-2 text-xl font-semibold">How can I help you today?</h2>
                     <p className="max-w-md text-sm text-muted-foreground">
@@ -970,7 +970,7 @@ export default function Home() {
                             className={cn(
                               "rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
                               msg.sender === "user"
-                                ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground shadow-primary/20"
+                                ? "bg-foreground text-background shadow-sm"
                                 : cn("border border-border/40 text-foreground shadow-black/5 backdrop-blur", theme === "dark" ? "bg-card/80" : "bg-white/80")
                             )}
                           >

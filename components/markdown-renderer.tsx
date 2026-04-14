@@ -88,7 +88,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary underline decoration-primary/30 underline-offset-2 hover:decoration-primary"
+            className="text-foreground underline decoration-muted-foreground/50 underline-offset-2 hover:decoration-foreground"
           >
             {children}
           </a>

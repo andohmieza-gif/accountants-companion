@@ -110,8 +110,8 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
         className={cn(
           "fixed bottom-24 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors",
           theme === "dark"
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "bg-primary text-primary-foreground hover:bg-primary/90"
+            ? "bg-foreground text-background hover:bg-foreground/90"
+            : "bg-foreground text-background hover:bg-foreground/90"
         )}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -144,7 +144,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
               {/* Header */}
               <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <Calculator className="h-4 w-4 text-primary" />
+                  <Calculator className="h-4 w-4 text-foreground" />
                   <span className="font-medium">Quick Calculator</span>
                 </div>
                 <button
@@ -170,7 +170,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
                       className={cn(
                         "rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
                         mode === m.id
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-foreground text-background"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
@@ -350,9 +350,9 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="mt-4 rounded-lg bg-primary/10 p-3 text-center"
+                      className="mt-4 rounded-lg bg-muted p-3 text-center"
                     >
-                      <p className="font-mono text-lg font-semibold text-primary">{result}</p>
+                      <p className="font-mono text-lg font-semibold text-foreground">{result}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
