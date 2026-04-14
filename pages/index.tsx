@@ -183,57 +183,20 @@ function exportConversationPdf(conv: Conversation): void {
   doc.save(`${safe}.pdf`);
 }
 
-const SUGGESTED_FOLLOWUPS: Record<string, string[]> = {
-  depreciation: [
-    "Show me the double-declining balance method",
-    "What's the journal entry for accumulated depreciation?",
-    "How does depreciation affect the cash flow statement?",
-  ],
-  journal: [
-    "Can you show me the T-accounts for this?",
-    "What if this was a cash transaction instead?",
-    "How would this look under IFRS?",
-  ],
-  gaap: [
-    "How does IFRS handle this differently?",
-    "What ASC codification covers this?",
-    "Give me a practical example",
-  ],
-  ifrs: [
-    "How does US GAAP treat this?",
-    "What IFRS standard number is this?",
-    "Show me the disclosure requirements",
-  ],
-  revenue: [
-    "Walk me through the 5-step model",
-    "How do I handle variable consideration?",
-    "What about contract modifications?",
-  ],
-  default: [
-    "Can you give me an example?",
-    "How would I record this?",
-    "What are common mistakes to avoid?",
-  ],
-};
+const FOLLOWUP_DELIMITER = "<<<FOLLOWUPS>>>";
 
-function getSuggestedFollowups(lastBotMessage: string): string[] {
-  const lower = lastBotMessage.toLowerCase();
-  if (lower.includes("depreciation") || lower.includes("amortization")) {
-    return SUGGESTED_FOLLOWUPS.depreciation;
+function parseFollowups(content: string): { cleanContent: string; followups: string[] } {
+  const idx = content.indexOf(FOLLOWUP_DELIMITER);
+  if (idx === -1) {
+    return { cleanContent: content, followups: [] };
   }
-  if (lower.includes("journal entry") || lower.includes("debit") || lower.includes("credit")) {
-    return SUGGESTED_FOLLOWUPS.journal;
-  }
-  if (lower.includes("gaap") || lower.includes("asc ")) {
-    return SUGGESTED_FOLLOWUPS.gaap;
-  }
-  if (lower.includes("ifrs")) {
-    return SUGGESTED_FOLLOWUPS.ifrs;
-  }
-  if (lower.includes("revenue") || lower.includes("asc 606") || lower.includes("ifrs 15")) {
-    return SUGGESTED_FOLLOWUPS.revenue;
-  }
-  return SUGGESTED_FOLLOWUPS.default;
+  const cleanContent = content.slice(0, idx).trim();
+  const followupStr = content.slice(idx + FOLLOWUP_DELIMITER.length).trim();
+  const followups = followupStr
+    .split("|")
+    .map((q) => q.trim())
+    .filter((q) => q.length > 0 && q.length < 80);
+  return { cleanContent, followups: followups.slice(0, 3) };
 }
 
 export default function Home() {
@@ -515,7 +478,7 @@ export default function Home() {
     if (!activeConversation || loading) return [];
     const lastMsg = activeConversation.messages[activeConversation.messages.length - 1];
     if (!lastMsg || lastMsg.sender !== "bot") return [];
-    return getSuggestedFollowups(lastMsg.content);
+    return lastMsg.followups ?? [];
   }, [activeConversation, loading]);
 
   const stopGeneration = () => {
@@ -666,13 +629,16 @@ export default function Home() {
       }
       accumulated += decoder.decode();
 
-      const finalText = accumulated.trim() || "Sorry, I didn't get that.";
+      const { cleanContent, followups } = parseFollowups(accumulated);
+      const finalText = cleanContent.trim() || "Sorry, I didn't get that.";
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
             ? {
                 ...c,
-                messages: c.messages.map((m) => (m.id === botId ? { ...m, content: finalText } : m)),
+                messages: c.messages.map((m) =>
+                  m.id === botId ? { ...m, content: finalText, followups } : m
+                ),
                 preview: finalText.slice(0, 50),
                 updatedAt: Date.now(),
               }

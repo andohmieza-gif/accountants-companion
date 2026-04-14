@@ -20,6 +20,7 @@ export type ChatMessage = {
   time: string;
   isHtml?: boolean;
   bookmarked?: boolean;
+  followups?: string[];
 };
 
 interface SidebarProps {
