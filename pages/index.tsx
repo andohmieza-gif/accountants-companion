@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import type { KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -18,6 +17,9 @@ import {
   BookmarkCheck,
   FileText,
   ChevronDown,
+  User,
+  Bot,
+  ArrowUp,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -215,7 +217,7 @@ export default function Home() {
   const [ratingShownThisSession, setRatingShownThisSession] = useState(false);
   const [currentFollowups, setCurrentFollowups] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
@@ -688,13 +690,6 @@ export default function Home() {
     await sendMessageInternal(trimmed, activeId, existingMessages);
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void sendMessage();
-    }
-  };
-
   return (
     <div className={cn("flex h-screen overflow-hidden transition-colors", theme === "dark" ? "bg-background" : "bg-gradient-to-br from-neutral-50 via-white to-neutral-100")}>
       {/* Decorative background elements */}
@@ -873,47 +868,61 @@ export default function Home() {
                     </div>
                   </motion.div>
                 ) : (
-                  <motion.div key="chat" className="space-y-4 pb-4">
+                  <motion.div key="chat" className="space-y-6 pb-4">
                     {chat.map((msg, index) => (
                       <motion.div
                         key={msg.id}
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{
                           type: "spring",
-                          stiffness: 500,
-                          damping: 30,
-                          delay: index === chat.length - 1 ? 0 : 0,
+                          stiffness: 400,
+                          damping: 25,
                         }}
-                        className={cn("flex", msg.sender === "user" ? "justify-end" : "justify-start")}
+                        className={cn("flex gap-3", msg.sender === "user" ? "flex-row-reverse" : "flex-row")}
                       >
+                        {/* Avatar */}
+                        <div
+                          className={cn(
+                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                            msg.sender === "user"
+                              ? "bg-foreground text-background"
+                              : theme === "dark" ? "bg-card border border-border/50" : "bg-muted"
+                          )}
+                        >
+                          {msg.sender === "user" ? (
+                            <User className="h-4 w-4" />
+                          ) : (
+                            <Sparkles className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+
                         <div
                           className={cn(
                             "group/msg relative max-w-[85%] sm:max-w-[75%]",
-                            msg.sender === "user" ? "order-2" : "order-1"
                           )}
                         >
                           {/* Action buttons */}
                           {messagePlainText(msg).trim().length > 0 &&
                             !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
                               <div className={cn(
-                                "absolute -top-1 z-10 flex gap-1",
-                                msg.sender === "user" ? "-left-1" : "-right-1"
+                                "absolute -top-2 z-10 flex gap-1",
+                                msg.sender === "user" ? "left-0" : "right-0"
                               )}>
                                 <button
                                   type="button"
                                   onClick={() => void copyMessage(msg)}
                                   className={cn(
-                                    "flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-all hover:bg-muted hover:text-foreground",
-                                    "opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100"
+                                    "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                    "opacity-0 group-hover/msg:opacity-100"
                                   )}
-                                  title="Copy message"
+                                  title="Copy"
                                   aria-label="Copy message"
                                 >
                                   {copiedMessageId === msg.id ? (
-                                    <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                                    <Check className="h-3 w-3 text-emerald-500" aria-hidden />
                                   ) : (
-                                    <Copy className="h-3.5 w-3.5" aria-hidden />
+                                    <Copy className="h-3 w-3" aria-hidden />
                                   )}
                                 </button>
                                 {msg.sender === "bot" && (
@@ -921,60 +930,57 @@ export default function Home() {
                                     type="button"
                                     onClick={() => toggleBookmark(msg.id)}
                                     className={cn(
-                                      "flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-background/95 text-muted-foreground shadow-sm backdrop-blur transition-all hover:bg-muted hover:text-foreground",
-                                      "opacity-100 sm:opacity-0 sm:group-hover/msg:opacity-100",
-                                      msg.bookmarked && "text-amber-500 sm:opacity-100"
+                                      "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                      "opacity-0 group-hover/msg:opacity-100",
+                                      msg.bookmarked && "text-amber-500 opacity-100"
                                     )}
-                                    title={msg.bookmarked ? "Remove bookmark" : "Bookmark this response"}
+                                    title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
                                     aria-label={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
                                   >
                                     {msg.bookmarked ? (
-                                      <BookmarkCheck className="h-3.5 w-3.5" aria-hidden />
+                                      <BookmarkCheck className="h-3 w-3" aria-hidden />
                                     ) : (
-                                      <Bookmark className="h-3.5 w-3.5" aria-hidden />
+                                      <Bookmark className="h-3 w-3" aria-hidden />
                                     )}
                                   </button>
                                 )}
                               </div>
                             )}
-                          <motion.div
-                            whileHover={{ scale: 1.005 }}
+                          <div
                             className={cn(
-                              "rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
+                              "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                               msg.sender === "user"
-                                ? "bg-foreground text-background shadow-sm"
-                                : cn("border border-border/40 text-foreground shadow-black/5 backdrop-blur", theme === "dark" ? "bg-card/80" : "bg-white/80")
+                                ? "bg-foreground text-background"
+                                : cn("border border-border/50", theme === "dark" ? "bg-card" : "bg-white shadow-sm")
                             )}
                           >
                             {msg.sender === "bot" && msg.isHtml ? (
                               <div dangerouslySetInnerHTML={{ __html: msg.content }} />
                             ) : msg.sender === "bot" && !msg.content && loading && msg.id === activeBotId ? (
-                              <span className="inline-flex items-center gap-2 text-muted-foreground">
-                                <motion.div
-                                  animate={{ rotate: 360 }}
-                                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                >
-                                  <Loader2 className="h-4 w-4" />
-                                </motion.div>
-                                <span className="inline-flex gap-0.5">
-                                  Thinking
-                                  <motion.span
-                                    animate={{ opacity: [0, 1, 0] }}
-                                    transition={{ duration: 1.5, repeat: Infinity }}
-                                  >
-                                    ...
-                                  </motion.span>
-                                </span>
-                              </span>
+                              <div className="flex items-center gap-1 py-1">
+                                {[0, 1, 2].map((i) => (
+                                  <motion.div
+                                    key={i}
+                                    className="h-2 w-2 rounded-full bg-muted-foreground/60"
+                                    animate={{ y: [0, -6, 0] }}
+                                    transition={{
+                                      duration: 0.6,
+                                      repeat: Infinity,
+                                      delay: i * 0.15,
+                                      ease: "easeInOut",
+                                    }}
+                                  />
+                                ))}
+                              </div>
                             ) : msg.sender === "user" ? (
                               <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                             ) : (
                               <MarkdownRenderer content={msg.content} />
                             )}
-                          </motion.div>
+                          </div>
                           <p
                             className={cn(
-                              "mt-1 px-1 text-[10px] text-muted-foreground/60",
+                              "mt-1.5 text-[10px] text-muted-foreground/50",
                               msg.sender === "user" ? "text-right" : "text-left"
                             )}
                           >
@@ -1042,43 +1048,68 @@ export default function Home() {
             transition={{ delay: 0.3 }}
             className={cn("relative border-t border-border/40 px-4 py-4 backdrop-blur-xl md:px-8", theme === "dark" ? "bg-card/70" : "bg-white/70")}
           >
-            <div className="mx-auto flex max-w-3xl gap-3">
-              <div className="relative flex-1">
-                <Input
+            <div className="mx-auto max-w-3xl">
+              <div
+                className={cn(
+                  "flex items-end gap-2 rounded-2xl border p-2 transition-all focus-within:border-foreground/20 focus-within:shadow-lg",
+                  theme === "dark" ? "border-border/50 bg-card" : "border-border/60 bg-white shadow-sm"
+                )}
+              >
+                <textarea
                   ref={inputRef}
-                  placeholder="Ask an accounting question… (press / to focus)"
+                  placeholder="Ask an accounting question..."
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + "px";
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (input.trim() && !loading) {
+                        void sendMessage();
+                      }
+                    }
+                  }}
                   disabled={loading}
-                  className={cn("h-12 rounded-xl border-border/60 pr-4 shadow-sm backdrop-blur transition-all focus:border-primary/50 focus:shadow-md focus:ring-primary/20", theme === "dark" ? "bg-card/80" : "bg-white/80")}
+                  rows={1}
+                  className={cn(
+                    "flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-relaxed outline-none placeholder:text-muted-foreground/60",
+                    "max-h-[150px] min-h-[40px]"
+                  )}
                 />
-              </div>
-              {loading ? (
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
+                {loading ? (
+                  <motion.button
                     type="button"
-                    variant="outline"
-                    className="h-12 gap-2 rounded-xl px-6"
                     onClick={stopGeneration}
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                      "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     <Square className="h-4 w-4" />
-                    <span className="hidden sm:inline">Stop</span>
-                  </Button>
-                </motion.div>
-              ) : (
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button
+                  </motion.button>
+                ) : (
+                  <motion.button
                     type="button"
-                    className="h-12 gap-2 rounded-xl px-6 shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:shadow-primary/30"
                     onClick={() => void sendMessage()}
                     disabled={!input.trim()}
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all",
+                      input.trim()
+                        ? "bg-foreground text-background hover:opacity-90"
+                        : "bg-muted text-muted-foreground cursor-not-allowed"
+                    )}
+                    whileHover={input.trim() ? { scale: 1.05 } : {}}
+                    whileTap={input.trim() ? { scale: 0.95 } : {}}
                   >
-                    <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">Send</span>
-                  </Button>
-                </motion.div>
-              )}
+                    <ArrowUp className="h-5 w-5" />
+                  </motion.button>
+                )}
+              </div>
             </div>
 
             {/* Footer with disclaimer */}
