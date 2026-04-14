@@ -69,7 +69,7 @@ const QUIZ_LOADING_MESSAGES = [
   { text: "Balancing the trial balance...", emoji: "📊" },
   { text: "Double-checking for materiality...", emoji: "🔍" },
   { text: "Almost there, promise!", emoji: "🏃" },
-  { text: "Asking ChatGPT to be nice...", emoji: "🤖" },
+  { text: "Waking up the number crunchers...", emoji: "🧮" },
   { text: "Recalculating depreciation...", emoji: "📉" },
   { text: "Checking if LIFO or FIFO...", emoji: "📦" },
   { text: "Auditing the question bank...", emoji: "🔎" },
