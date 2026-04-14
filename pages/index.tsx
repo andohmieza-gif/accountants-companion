@@ -183,20 +183,19 @@ function exportConversationPdf(conv: Conversation): void {
   doc.save(`${safe}.pdf`);
 }
 
-const FOLLOWUP_DELIMITER = "<<<FOLLOWUPS>>>";
-
-function parseFollowups(content: string): { cleanContent: string; followups: string[] } {
-  const idx = content.indexOf(FOLLOWUP_DELIMITER);
-  if (idx === -1) {
-    return { cleanContent: content, followups: [] };
+async function fetchFollowups(question: string, answer: string): Promise<string[]> {
+  try {
+    const res = await fetch("/api/followups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, answer }),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { followups?: string[] };
+    return data.followups ?? [];
+  } catch {
+    return [];
   }
-  const cleanContent = content.slice(0, idx).trim();
-  const followupStr = content.slice(idx + FOLLOWUP_DELIMITER.length).trim();
-  const followups = followupStr
-    .split("|")
-    .map((q) => q.trim())
-    .filter((q) => q.length > 0 && q.length < 80);
-  return { cleanContent, followups: followups.slice(0, 3) };
 }
 
 export default function Home() {
@@ -214,6 +213,7 @@ export default function Home() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
   const [ratingShownThisSession, setRatingShownThisSession] = useState(false);
+  const [currentFollowups, setCurrentFollowups] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -478,8 +478,8 @@ export default function Home() {
     if (!activeConversation || loading) return [];
     const lastMsg = activeConversation.messages[activeConversation.messages.length - 1];
     if (!lastMsg || lastMsg.sender !== "bot") return [];
-    return lastMsg.followups ?? [];
-  }, [activeConversation, loading]);
+    return currentFollowups;
+  }, [activeConversation, loading, currentFollowups]);
 
   const stopGeneration = () => {
     if (abortControllerRef.current) {
@@ -544,6 +544,7 @@ export default function Home() {
 
     setInput("");
     setLoading(true);
+    setCurrentFollowups([]);
     incrementMessageCount();
 
     const question = trimmed.toLowerCase();
@@ -629,15 +630,14 @@ export default function Home() {
       }
       accumulated += decoder.decode();
 
-      const { cleanContent, followups } = parseFollowups(accumulated);
-      const finalText = cleanContent.trim() || "Sorry, I didn't get that.";
+      const finalText = accumulated.trim() || "Sorry, I didn't get that.";
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
             ? {
                 ...c,
                 messages: c.messages.map((m) =>
-                  m.id === botId ? { ...m, content: finalText, followups } : m
+                  m.id === botId ? { ...m, content: finalText } : m
                 ),
                 preview: finalText.slice(0, 50),
                 updatedAt: Date.now(),
@@ -645,6 +645,11 @@ export default function Home() {
             : c
         )
       );
+
+      // Fetch AI-generated follow-ups in background
+      fetchFollowups(trimmed, finalText).then((followups) => {
+        setCurrentFollowups(followups);
+      });
     } catch (err) {
       if ((err as Error)?.name === "AbortError") {
         setConversations((prev) =>
@@ -708,6 +713,7 @@ export default function Home() {
         onSelect={(id) => {
           setActiveId(id);
           setSidebarOpen(false);
+          setCurrentFollowups([]);
         }}
         onNew={startNewChat}
         onRequestDelete={requestDeleteConversation}
