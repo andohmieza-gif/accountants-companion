@@ -225,8 +225,14 @@ export default function Home() {
   const [showStudyMode, setShowStudyMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -313,6 +319,33 @@ export default function Home() {
         return;
       }
 
+      // Set up audio analysis for visualization
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 256;
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      // Animate audio levels
+      const updateAudioLevel = () => {
+        if (analyserRef.current) {
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          setAudioLevel(avg / 255);
+        }
+        animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
+      };
+      updateAudioLevel();
+
+      // Recording timer
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((t) => t + 1);
+      }, 1000);
+
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -324,6 +357,13 @@ export default function Home() {
       };
 
       mediaRecorder.onstop = async () => {
+        // Clean up audio analysis
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        if (audioContextRef.current) audioContextRef.current.close();
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setAudioLevel(0);
+        setRecordingTime(0);
+        
         stream.getTracks().forEach((track) => track.stop());
         
         if (audioChunksRef.current.length === 0) return;
@@ -331,7 +371,6 @@ export default function Home() {
         setIsTranscribing(true);
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const formData = new FormData();
-        // Use correct extension based on mime type
         const ext = mimeType.includes("mp4") ? "mp4" : "webm";
         formData.append("audio", new File([audioBlob], `recording.${ext}`, { type: mimeType }));
 
@@ -368,16 +407,43 @@ export default function Home() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
+    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     setIsListening(false);
+    setAudioLevel(0);
   }, []);
 
-  const toggleVoiceInput = useCallback(() => {
+  // Global mouse/touch up to stop recording (for press-and-hold UX)
+  // Only stops if held for more than 500ms (otherwise treat as tap-to-toggle)
+  const recordingStartTimeRef = useRef<number | null>(null);
+  
+  useEffect(() => {
     if (isListening) {
-      stopRecording();
-    } else {
-      startRecording();
+      recordingStartTimeRef.current = Date.now();
     }
-  }, [isListening, startRecording, stopRecording]);
+  }, [isListening]);
+  
+  useEffect(() => {
+    if (!isListening) return;
+    
+    const handleGlobalRelease = () => {
+      const holdDuration = recordingStartTimeRef.current 
+        ? Date.now() - recordingStartTimeRef.current 
+        : 0;
+      // Only stop on release if held for more than 500ms
+      if (holdDuration > 500) {
+        stopRecording();
+      }
+    };
+    
+    window.addEventListener("mouseup", handleGlobalRelease);
+    window.addEventListener("touchend", handleGlobalRelease);
+    
+    return () => {
+      window.removeEventListener("mouseup", handleGlobalRelease);
+      window.removeEventListener("touchend", handleGlobalRelease);
+    };
+  }, [isListening, stopRecording]);
 
   useEffect(() => {
     scrollToBottom();
@@ -1215,31 +1281,90 @@ export default function Home() {
                     "max-h-[150px] min-h-[40px]"
                   )}
                 />
-                {/* Voice input */}
-                <motion.button
-                  type="button"
-                  onClick={toggleVoiceInput}
-                  disabled={isTranscribing}
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
-                    isTranscribing
-                      ? "bg-muted text-muted-foreground cursor-wait"
-                      : isListening
-                        ? "bg-red-500 text-white"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  title={isTranscribing ? "Transcribing..." : isListening ? "Stop recording" : "Voice input"}
-                >
-                  {isTranscribing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : isListening ? (
-                    <MicOff className="h-4 w-4" />
+                {/* Voice input - Press and hold */}
+                <AnimatePresence mode="wait">
+                  {isListening ? (
+                    <motion.div
+                      key="recording"
+                      initial={{ width: 40, opacity: 0 }}
+                      animate={{ width: "auto", opacity: 1 }}
+                      exit={{ width: 40, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={cn(
+                        "flex h-10 shrink-0 items-center gap-2.5 rounded-xl px-3",
+                        "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/20"
+                      )}
+                    >
+                      {/* Pulsing record indicator */}
+                      <motion.div
+                        className="h-2 w-2 rounded-full bg-white"
+                        animate={{ opacity: [1, 0.4, 1] }}
+                        transition={{ duration: 1, repeat: Infinity }}
+                      />
+                      {/* Waveform visualization */}
+                      <div className="flex h-5 items-center gap-[3px]">
+                        {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+                          const delay = i * 0.05;
+                          const baseHeight = 4;
+                          const dynamicHeight = Math.max(baseHeight, audioLevel * 20 * (0.6 + Math.sin(Date.now() / 100 + i) * 0.4));
+                          return (
+                            <motion.div
+                              key={i}
+                              className="w-[3px] rounded-full bg-white/90"
+                              animate={{
+                                height: `${dynamicHeight}px`,
+                                scaleY: [1, 1.1, 1],
+                              }}
+                              transition={{ 
+                                duration: 0.15,
+                                delay,
+                                scaleY: { duration: 0.3, repeat: Infinity }
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="min-w-[36px] text-xs font-medium tabular-nums">
+                        {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, "0")}
+                      </span>
+                      <motion.button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          stopRecording();
+                        }}
+                        className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20 transition-colors hover:bg-white/30"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <Square className="h-3 w-3" />
+                      </motion.button>
+                    </motion.div>
                   ) : (
-                    <Mic className="h-4 w-4" />
+                    <motion.button
+                      key="idle"
+                      type="button"
+                      onMouseDown={isTranscribing ? undefined : startRecording}
+                      onTouchStart={isTranscribing ? undefined : startRecording}
+                      disabled={isTranscribing}
+                      className={cn(
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+                        isTranscribing
+                          ? "bg-muted text-muted-foreground cursor-wait"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-red-500 active:text-white"
+                      )}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title={isTranscribing ? "Transcribing..." : "Hold to record"}
+                    >
+                      {isTranscribing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </motion.button>
                   )}
-                </motion.button>
+                </AnimatePresence>
 
                 {loading ? (
                   <motion.button
