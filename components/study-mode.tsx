@@ -1095,12 +1095,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                                   ) : showResult && isSelected ? (
                                     <XCircle className="h-4 w-4" />
                                   ) : (
-                                    <span className="relative">
-                                      {letter}
-                                      <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[9px] text-muted-foreground/50 hidden sm:block">
-                                        {i + 1}
-                                      </span>
-                                    </span>
+                                    letter
                                   )}
                                 </span>
                                 <span className="flex-1">{cleanOption}</span>
