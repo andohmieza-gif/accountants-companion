@@ -407,6 +407,8 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             const isCorrect = i === currentQuestion.correctIndex;
                             const isSelected = selectedAnswer === i;
                             const letter = String.fromCharCode(65 + i);
+                            // Strip any leading letter prefix like "A) ", "A. ", "A - ", etc.
+                            const cleanOption = option.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "");
 
                             return (
                               <motion.button
@@ -447,7 +449,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                                     letter
                                   )}
                                 </span>
-                                <span className="flex-1">{option}</span>
+                                <span className="flex-1">{cleanOption}</span>
                               </motion.button>
                             );
                           })}
