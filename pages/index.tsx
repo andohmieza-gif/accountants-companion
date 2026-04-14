@@ -17,6 +17,7 @@ import {
   Bookmark,
   BookmarkCheck,
   FileText,
+  ChevronDown,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
@@ -328,17 +330,31 @@ export default function Home() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // Keyboard shortcut: "/" to focus input
+  // Keyboard shortcuts: "/" to focus input, Escape to close menus
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName ?? "")) {
         e.preventDefault();
         inputRef.current?.focus();
       }
+      if (e.key === "Escape") {
+        setShowExportMenu(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Close export menu on click outside
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const onClick = () => setShowExportMenu(false);
+    const timer = setTimeout(() => window.addEventListener("click", onClick), 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", onClick);
+    };
+  }, [showExportMenu]);
 
   const toggleTheme = () => {
     const next: Theme = theme === "light" ? "dark" : "light";
@@ -760,31 +776,58 @@ export default function Home() {
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground"
-                disabled={!activeConversation || activeConversation.messages.length === 0}
-                onClick={handleExportMarkdown}
-                title="Download as Markdown"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden lg:inline">MD</span>
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-muted-foreground"
-                disabled={!activeConversation || activeConversation.messages.length === 0}
-                onClick={handleExportPdf}
-                title="Download as PDF"
-              >
-                <FileText className="h-4 w-4" />
-                <span className="hidden lg:inline">PDF</span>
-              </Button>
+              {/* Export dropdown */}
+              <div className="relative">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-muted-foreground"
+                  disabled={!activeConversation || activeConversation.messages.length === 0}
+                  onClick={() => setShowExportMenu((v) => !v)}
+                  title="Export conversation"
+                >
+                  <Download className="h-4 w-4" />
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+                <AnimatePresence>
+                  {showExportMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className={cn(
+                        "absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-xl border p-1 shadow-xl backdrop-blur-xl",
+                        theme === "dark" ? "border-border/60 bg-card/95" : "border-border/40 bg-white/95"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportMarkdown();
+                          setShowExportMenu(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Markdown (.md)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportPdf();
+                          setShowExportMenu(false);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        <Download className="h-4 w-4" />
+                        PDF (.pdf)
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               <Button type="button" variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setShowRating(true)} title="Rate this app">
                 <Star className="h-4 w-4" />
