@@ -22,45 +22,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are an accounting quiz generator. Generate exactly 5 multiple choice questions about the given accounting topic.
-
-Return a JSON array with this exact structure (no markdown, just JSON):
-[
-  {
-    "question": "The question text",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctIndex": 0,
-    "explanation": "Brief explanation of why the answer is correct"
-  }
-]
-
-Make questions appropriate for CPA exam preparation level. Each question must have exactly 4 options.`,
+          content: `Generate 5 CPA-level multiple choice questions. Return JSON: {"questions":[{"question":"...","options":["A","B","C","D"],"correctIndex":0,"explanation":"..."}]}`,
         },
         {
           role: "user",
-          content: `Generate 5 quiz questions about: ${topic}`,
+          content: topic,
         },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 1500,
     });
 
-    const content = response.choices[0]?.message?.content || "[]";
-    
-    // Parse JSON from response
-    let questions;
-    try {
-      // Try to extract JSON if it's wrapped in markdown
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      questions = JSON.parse(jsonMatch ? jsonMatch[0] : content);
-    } catch {
-      questions = [];
-    }
+    const content = response.choices[0]?.message?.content || '{"questions":[]}';
+    const parsed = JSON.parse(content);
 
-    return res.status(200).json({ questions });
+    return res.status(200).json({ questions: parsed.questions || [] });
   } catch (error) {
     console.error("Quiz API error:", error);
     return res.status(500).json({ error: "Failed to generate quiz" });

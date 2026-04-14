@@ -22,42 +22,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are an accounting flashcard generator. Generate exactly 8 flashcards about the given accounting topic.
-
-Return a JSON array with this exact structure (no markdown, just JSON):
-[
-  {
-    "front": "Question or term on front of card",
-    "back": "Answer or definition on back of card"
-  }
-]
-
-Make flashcards concise and useful for studying. Front should be a question or term, back should be a clear answer.`,
+          content: `Generate 6 concise accounting flashcards. Return JSON: {"flashcards":[{"front":"term or question","back":"answer"}]}`,
         },
         {
           role: "user",
-          content: `Generate 8 flashcards about: ${topic}`,
+          content: topic,
         },
       ],
       temperature: 0.7,
-      max_tokens: 1500,
+      max_tokens: 1000,
     });
 
-    const content = response.choices[0]?.message?.content || "[]";
-    
-    // Parse JSON from response
-    let flashcards;
-    try {
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      flashcards = JSON.parse(jsonMatch ? jsonMatch[0] : content);
-    } catch {
-      flashcards = [];
-    }
+    const content = response.choices[0]?.message?.content || '{"flashcards":[]}';
+    const parsed = JSON.parse(content);
 
-    return res.status(200).json({ flashcards });
+    return res.status(200).json({ flashcards: parsed.flashcards || [] });
   } catch (error) {
     console.error("Flashcards API error:", error);
     return res.status(500).json({ error: "Failed to generate flashcards" });
