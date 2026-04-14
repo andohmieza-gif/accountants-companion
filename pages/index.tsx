@@ -213,6 +213,7 @@ export default function Home() {
   const [activeBotId, setActiveBotId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -794,7 +795,9 @@ export default function Home() {
         conversations={conversations}
         activeId={activeId}
         isOpen={sidebarOpen}
+        isCollapsed={sidebarCollapsed}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         onSelect={(id) => {
           setActiveId(id);
           setSidebarOpen(false);
@@ -806,61 +809,84 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
+        {/* Modern Header */}
         <header
           className={cn(
-            "relative z-10 border-b px-4 py-3 md:px-6",
-            theme === "dark" ? "border-border/50 bg-background" : "border-border/40 bg-white"
+            "relative z-10 px-4 py-2.5 md:px-6",
+            theme === "dark" ? "bg-background/80 backdrop-blur-xl" : "bg-white/80 backdrop-blur-xl"
           )}
         >
           <div className="mx-auto flex max-w-4xl items-center justify-between">
-            <div className="flex min-w-0 items-center gap-2.5 pl-12 lg:pl-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground">
-                <Sparkles className="h-4 w-4 text-background" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="truncate text-base font-semibold">The Accountant&apos;s Companion</h1>
-              </div>
+            {/* Logo - centered on mobile, left on desktop */}
+            <div className="flex min-w-0 items-center gap-3 pl-12 lg:pl-0">
+              <motion.div 
+                className={cn(
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                  theme === "dark" ? "bg-white/10" : "bg-black/5"
+                )}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Sparkles className={cn("h-5 w-5", theme === "dark" ? "text-white" : "text-black")} />
+              </motion.div>
+              <span className="hidden text-sm font-medium text-muted-foreground sm:block">
+                The Accountant&apos;s Companion
+              </span>
             </div>
 
-            <div className="flex shrink-0 items-center gap-0.5">
-              {/* Study Mode */}
-              <button
+            {/* Action buttons */}
+            <div className="flex shrink-0 items-center gap-1">
+              {/* Study Mode - pill button */}
+              <motion.button
                 type="button"
                 onClick={() => setShowStudyMode(true)}
-                className="flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={cn(
+                  "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
+                  theme === "dark"
+                    ? "bg-white/10 text-white hover:bg-white/15"
+                    : "bg-black/5 text-black hover:bg-black/10"
+                )}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 title="Study Mode"
               >
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">Study</span>
-              </button>
+              </motion.button>
+
+              {/* Divider */}
+              <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-black/10")} />
 
               {/* Export dropdown */}
               <div className="relative">
-                <button
+                <motion.button
                   type="button"
                   disabled={!activeConversation || activeConversation.messages.length === 0}
                   onClick={() => setShowExportMenu((v) => !v)}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                     !activeConversation || activeConversation.messages.length === 0
-                      ? "text-muted-foreground/40 cursor-not-allowed"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "text-muted-foreground/30 cursor-not-allowed"
+                      : theme === "dark"
+                        ? "text-white/60 hover:bg-white/10 hover:text-white"
+                        : "text-black/60 hover:bg-black/5 hover:text-black"
                   )}
+                  whileHover={activeConversation?.messages.length ? { scale: 1.05 } : {}}
+                  whileTap={activeConversation?.messages.length ? { scale: 0.95 } : {}}
                   title="Export"
                 >
                   <Download className="h-4 w-4" />
-                </button>
+                </motion.button>
                 <AnimatePresence>
                   {showExportMenu && (
                     <motion.div
-                      initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                      initial={{ opacity: 0, y: -8, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -4, scale: 0.95 }}
-                      transition={{ duration: 0.12 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
                       className={cn(
-                        "absolute right-0 top-full z-20 mt-1.5 w-36 overflow-hidden rounded-lg border p-1 shadow-lg",
-                        theme === "dark" ? "border-border bg-card" : "border-border/60 bg-white"
+                        "absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-xl border p-1.5 shadow-xl",
+                        theme === "dark" ? "border-white/10 bg-card" : "border-black/10 bg-white"
                       )}
                     >
                       <button
@@ -869,9 +895,9 @@ export default function Home() {
                           handleExportMarkdown();
                           setShowExportMenu(false);
                         }}
-                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                       >
-                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        <FileText className="h-4 w-4 text-muted-foreground" />
                         Markdown
                       </button>
                       <button
@@ -880,9 +906,9 @@ export default function Home() {
                           handleExportPdf();
                           setShowExportMenu(false);
                         }}
-                        className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                       >
-                        <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Download className="h-4 w-4 text-muted-foreground" />
                         PDF
                       </button>
                     </motion.div>
@@ -890,23 +916,37 @@ export default function Home() {
                 </AnimatePresence>
               </div>
 
-              <button
+              <motion.button
                 type="button"
                 onClick={() => setShowRating(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                  theme === "dark"
+                    ? "text-white/60 hover:bg-white/10 hover:text-white"
+                    : "text-black/60 hover:bg-black/5 hover:text-black"
+                )}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 title="Rate"
               >
                 <Star className="h-4 w-4" />
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
                 onClick={toggleTheme}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
+                  theme === "dark"
+                    ? "text-white/60 hover:bg-white/10 hover:text-white"
+                    : "text-black/60 hover:bg-black/5 hover:text-black"
+                )}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 title={theme === "dark" ? "Light mode" : "Dark mode"}
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
+              </motion.button>
             </div>
           </div>
         </header>

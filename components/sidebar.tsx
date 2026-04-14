@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, MessageSquare, Trash2, ChevronLeft, Menu, Search } from "lucide-react";
+import { Plus, MessageSquare, Trash2, ChevronLeft, ChevronRight, Menu, Search, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,9 @@ interface SidebarProps {
   conversations: Conversation[];
   activeId: string | null;
   isOpen: boolean;
+  isCollapsed: boolean;
   onToggle: () => void;
+  onCollapse: () => void;
   onSelect: (id: string) => void;
   onNew: () => void;
   /** Opens delete confirmation in parent — do not remove from list here. */
@@ -38,7 +40,9 @@ export function Sidebar({
   conversations,
   activeId,
   isOpen,
+  isCollapsed,
   onToggle,
+  onCollapse,
   onSelect,
   onNew,
   onRequestDelete,
@@ -72,10 +76,13 @@ export function Sidebar({
     onSelect,
     onNew,
     onRequestDelete,
+    isCollapsed,
+    onCollapse,
   };
 
   return (
     <>
+      {/* Mobile toggle button */}
       <motion.button
         initial={false}
         animate={{ x: isOpen ? 280 : 0 }}
@@ -86,6 +93,7 @@ export function Sidebar({
         {isOpen ? <ChevronLeft className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </motion.button>
 
+      {/* Mobile overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -99,18 +107,25 @@ export function Sidebar({
         )}
       </AnimatePresence>
 
+      {/* Mobile sidebar */}
       <motion.aside
         initial={false}
         animate={{ x: isOpen ? 0 : -320 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border/40 bg-gradient-to-b from-card via-card to-card/95 shadow-2xl backdrop-blur-xl lg:hidden"
       >
-        <SidebarContent {...sharedContentProps} />
+        <SidebarContent {...sharedContentProps} isCollapsed={false} />
       </motion.aside>
 
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-border/40 bg-gradient-to-b from-card via-card to-card/95 lg:flex">
+      {/* Desktop sidebar - collapsible */}
+      <motion.aside 
+        initial={false}
+        animate={{ width: isCollapsed ? 64 : 288 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="hidden shrink-0 flex-col border-r border-border/40 bg-gradient-to-b from-card via-card to-card/95 lg:flex"
+      >
         <SidebarContent {...sharedContentProps} />
-      </aside>
+      </motion.aside>
     </>
   );
 }
@@ -124,6 +139,8 @@ interface SidebarContentProps {
   onSelect: (id: string) => void;
   onNew: () => void;
   onRequestDelete: (id: string) => void;
+  isCollapsed: boolean;
+  onCollapse: () => void;
 }
 
 function SidebarContent({
@@ -135,16 +152,69 @@ function SidebarContent({
   onSelect,
   onNew,
   onRequestDelete,
+  isCollapsed,
+  onCollapse,
 }: SidebarContentProps) {
+  if (isCollapsed) {
+    return (
+      <div className="flex h-full flex-col items-center py-4">
+        <button
+          type="button"
+          onClick={onCollapse}
+          className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Expand sidebar"
+        >
+          <PanelLeft className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={onNew}
+          className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background transition-colors hover:bg-foreground/90"
+          title="New chat"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          {conversations.slice(0, 10).map((conv) => (
+            <button
+              key={conv.id}
+              type="button"
+              onClick={() => onSelect(conv.id)}
+              className={cn(
+                "mb-2 flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                activeId === conv.id
+                  ? "bg-muted ring-1 ring-border"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+              title={conv.title}
+            >
+              <MessageSquare className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="border-b border-border/40 p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">Chats</h2>
-          <Button type="button" onClick={onNew} size="sm" className="shrink-0 gap-1.5 rounded-xl">
-            <Plus className="h-4 w-4" />
-            New
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button type="button" onClick={onNew} size="sm" className="shrink-0 gap-1.5 rounded-xl">
+              <Plus className="h-4 w-4" />
+              New
+            </Button>
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="hidden h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
