@@ -27,6 +27,7 @@ import {
   BarChart3,
   Settings,
   Star,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -155,7 +156,14 @@ function Confetti({ active }: { active: boolean }) {
   );
 }
 
-type Tab = "quiz" | "flashcards" | "journal";
+type Tab = "quiz" | "flashcards" | "match" | "journal";
+
+type MatchTile = {
+  id: string;
+  pairId: number;
+  side: "term" | "definition";
+  text: string;
+};
 
 interface QuizQuestion {
   question: string;
@@ -184,6 +192,14 @@ const QUIZ_TOPICS = [
   { name: "Bond Accounting", icon: "📜" },
   { name: "Cash Flow Statement", icon: "💵" },
   { name: "Audit Procedures", icon: "🔍" },
+  { name: "Income Taxes (ASC 740)", icon: "🧾" },
+  { name: "Fair Value (ASC 820)", icon: "⚖️" },
+  { name: "Equity & Stock Compensation", icon: "📈" },
+  { name: "Consolidations & Business Combinations", icon: "🤝" },
+  { name: "Internal Control & Fraud Risk", icon: "🛡️" },
+  { name: "Foreign Currency (ASC 830)", icon: "🌍" },
+  { name: "Payroll & Employee Benefits", icon: "👥" },
+  { name: "Property, Plant & Equipment", icon: "🏭" },
 ];
 
 const FLASHCARD_TOPICS = [
@@ -192,7 +208,39 @@ const FLASHCARD_TOPICS = [
   { name: "Journal Entry Rules", icon: "✍️", count: 10 },
   { name: "GAAP Principles", icon: "📋", count: 10 },
   { name: "Audit Assertions", icon: "✅", count: 10 },
+  { name: "Financial Statement Line Items", icon: "📊", count: 10 },
+  { name: "Revenue Recognition (ASC 606)", icon: "💰", count: 10 },
+  { name: "Leases (ASC 842)", icon: "🏢", count: 10 },
+  { name: "Inventory & COGS", icon: "📦", count: 10 },
+  { name: "Fixed Assets & Depreciation", icon: "📉", count: 10 },
+  { name: "Income Taxes (ASC 740)", icon: "🧾", count: 10 },
+  { name: "Debt, Bonds & Interest", icon: "📜", count: 10 },
+  { name: "Cash Flow & Liquidity", icon: "💵", count: 10 },
+  { name: "Ethics & Professional Conduct", icon: "⚖️", count: 10 },
 ];
+
+/** Topics for Match mode (dedicated prompts so definitions are not trivial to pair). */
+const MATCH_TOPICS = FLASHCARD_TOPICS;
+
+function buildMatchTilesFromCards(cards: Flashcard[]): MatchTile[] {
+  const subset = cards.slice(0, Math.min(6, cards.length));
+  const tiles: MatchTile[] = [];
+  subset.forEach((card, i) => {
+    tiles.push({
+      id: `t-${i}-term`,
+      pairId: i,
+      side: "term",
+      text: card.front,
+    });
+    tiles.push({
+      id: `t-${i}-def`,
+      pairId: i,
+      side: "definition",
+      text: card.back,
+    });
+  });
+  return shuffleArray(tiles);
+}
 
 const QUIZ_LOADING_MESSAGES = [
   { text: "Brewing some brain teasers...", emoji: "🧪" },
@@ -264,6 +312,14 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [flashcardTopic, setFlashcardTopic] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+  const [matchTopic, setMatchTopic] = useState<string | null>(null);
+  const [matchTiles, setMatchTiles] = useState<MatchTile[]>([]);
+  const [matchMatched, setMatchMatched] = useState<Set<number>>(() => new Set());
+  const [matchSelectedId, setMatchSelectedId] = useState<string | null>(null);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchComplete, setMatchComplete] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
   
   // New features state
   const [showSettings, setShowSettings] = useState(false);
@@ -347,21 +403,20 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     };
   }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
-  // Shuffle and rotate loading messages
+  // Shuffle and rotate loading messages (quiz, flashcards, or match)
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !matchLoading) {
       setLoadingMsgIndex(0);
       return;
     }
-    // Shuffle messages when loading starts
     setShuffledQuizMsgs(shuffleArray(QUIZ_LOADING_MESSAGES));
     setShuffledFlashcardMsgs(shuffleArray(FLASHCARD_LOADING_MESSAGES));
-    
+
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
     }, 2000);
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [loading, matchLoading]);
   const [isFlipped, setIsFlipped] = useState(false);
 
   const [journalEntries, setJournalEntries] = useState<{ account: string; debit: string; credit: string }[]>([
@@ -417,6 +472,37 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const fetchMatchRound = useCallback(async (topic: string) => {
+    setMatchLoading(true);
+    setMatchTopic(topic);
+    setMatchTiles([]);
+    setMatchMatched(new Set());
+    setMatchSelectedId(null);
+    setMatchComplete(false);
+    setMatchError(null);
+
+    try {
+      const res = await fetch("/api/flashcards", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, forMatch: true }),
+      });
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      const cards: Flashcard[] = data.flashcards || [];
+      if (cards.length < 2) {
+        setMatchError("Need at least 2 cards to play. Try another topic.");
+        return;
+      }
+      setMatchTiles(buildMatchTilesFromCards(cards));
+    } catch (e) {
+      console.error(e);
+      setMatchError("Could not load cards. Try again.");
+    } finally {
+      setMatchLoading(false);
     }
   }, []);
 
@@ -592,9 +678,61 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
 
   const tabs = [
     { id: "quiz" as Tab, label: "Quiz", icon: Brain, description: "Test your knowledge" },
-    { id: "flashcards" as Tab, label: "Flashcards", icon: Lightbulb, description: "Quick review" },
+    { id: "flashcards" as Tab, label: "Flashcards", icon: Lightbulb, description: "Flip & memorize" },
+    { id: "match" as Tab, label: "Match", icon: Link2, description: "Pair term to definition" },
     { id: "journal" as Tab, label: "Journal", icon: FileSpreadsheet, description: "Practice entries" },
   ];
+
+  const matchPairCount = matchTiles.length / 2;
+
+  const handleMatchTileClick = (tile: MatchTile) => {
+    if (matchMatched.has(tile.pairId) || matchComplete) return;
+
+    if (!matchSelectedId) {
+      setMatchSelectedId(tile.id);
+      return;
+    }
+
+    if (matchSelectedId === tile.id) {
+      setMatchSelectedId(null);
+      return;
+    }
+
+    const other = matchTiles.find((t) => t.id === matchSelectedId);
+    if (!other) {
+      setMatchSelectedId(tile.id);
+      return;
+    }
+
+    const isPair =
+      other.pairId === tile.pairId && other.side !== tile.side;
+
+    if (isPair) {
+      playSound("correct", settings.soundEnabled);
+      const next = new Set(matchMatched);
+      next.add(tile.pairId);
+      setMatchMatched(next);
+      setMatchSelectedId(null);
+      if (matchPairCount > 0 && next.size >= matchPairCount) {
+        playSound("complete", settings.soundEnabled);
+        setMatchComplete(true);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2000);
+      }
+    } else {
+      playSound("wrong", settings.soundEnabled);
+      setMatchSelectedId(null);
+    }
+  };
+
+  const resetMatchRound = () => {
+    setMatchTopic(null);
+    setMatchTiles([]);
+    setMatchMatched(new Set());
+    setMatchSelectedId(null);
+    setMatchComplete(false);
+    setMatchError(null);
+  };
 
   return (
     <AnimatePresence>
@@ -821,15 +959,16 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
 
             {/* Tabs */}
             <div className={cn(
-              "mx-6 flex gap-2 rounded-xl p-1.5",
+              "mx-6 flex gap-1 rounded-xl p-1 sm:gap-2 sm:p-1.5",
               theme === "dark" ? "bg-card" : "bg-neutral-100"
             )}>
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
+                  title={tab.description}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium transition-all",
+                    "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all sm:gap-2 sm:px-2 sm:py-2.5 sm:text-sm",
                     activeTab === tab.id
                       ? theme === "dark"
                         ? "bg-background text-foreground shadow-sm"
@@ -837,8 +976,8 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
+                  <tab.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span className="truncate sm:max-w-none">{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -1343,6 +1482,182 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                             <span className="hidden sm:inline">Next</span>
                             <ChevronRight className="ml-1 h-4 w-4" />
                           </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </motion.div>
+                )}
+
+                {/* Match pairs tab */}
+                {activeTab === "match" && (
+                  <motion.div
+                    key="match"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Confetti active={showConfetti && activeTab === "match"} />
+                    {!matchTopic ? (
+                      <div>
+                        <p className="mb-5 text-muted-foreground">
+                          Pair each term with its definition. Cards are generated for match play—definitions avoid repeating the term so pairing stays a real recall check.
+                        </p>
+                        <div className="space-y-3">
+                          {MATCH_TOPICS.map((topic) => (
+                            <motion.button
+                              key={topic.name}
+                              onClick={() => fetchMatchRound(topic.name)}
+                              className={cn(
+                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
+                                theme === "dark"
+                                  ? "border-border bg-card hover:border-foreground/20"
+                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                              )}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
+                            >
+                              <span className="text-2xl">{topic.icon}</span>
+                              <div className="flex-1">
+                                <p className="font-medium">{topic.name}</p>
+                                <p className="text-xs text-muted-foreground">6 pairs per round</p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : matchLoading ? (
+                      <div className="flex flex-col items-center justify-center py-16">
+                        <motion.div
+                          animate={{ rotate: [0, 10, -10, 0] }}
+                          transition={{ duration: 1.2, repeat: Infinity }}
+                          className="text-5xl"
+                        >
+                          {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
+                        </motion.div>
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={loadingMsgIndex}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="mt-4 text-muted-foreground"
+                          >
+                            {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].text}
+                          </motion.p>
+                        </AnimatePresence>
+                        <p className="mt-2 text-xs text-muted-foreground/60">{matchTopic}</p>
+                      </div>
+                    ) : matchError && matchTiles.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <p className="text-muted-foreground">{matchError}</p>
+                        <Button variant="outline" className="mt-6 rounded-xl" onClick={resetMatchRound}>
+                          Back to topics
+                        </Button>
+                      </div>
+                    ) : matchTiles.length > 0 ? (
+                      <div>
+                        <div className="mb-4 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={resetMatchRound}
+                            className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Topics
+                          </button>
+                          <p className="truncate text-center text-xs text-muted-foreground sm:text-sm">
+                            {matchTopic} · {matchMatched.size}/{matchPairCount} pairs
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 rounded-lg text-xs"
+                            onClick={() => matchTopic && fetchMatchRound(matchTopic)}
+                          >
+                            <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                            New deck
+                          </Button>
+                        </div>
+
+                        {matchComplete && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={cn(
+                              "mb-4 flex flex-col items-center gap-2 rounded-xl border p-4 sm:flex-row sm:justify-center",
+                              theme === "dark" ? "border-emerald-500/30 bg-emerald-500/5" : "border-emerald-500/20 bg-emerald-50"
+                            )}
+                          >
+                            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                              All pairs matched.
+                            </p>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="rounded-lg"
+                                onClick={() => {
+                                  setMatchComplete(false);
+                                  setMatchMatched(new Set());
+                                  setMatchSelectedId(null);
+                                  matchTopic && fetchMatchRound(matchTopic);
+                                }}
+                              >
+                                Again
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg" onClick={resetMatchRound}>
+                                Topics
+                              </Button>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        <p className="mb-3 text-center text-xs text-muted-foreground">
+                          Tap a <span className="font-medium text-foreground">term</span>, then its{" "}
+                          <span className="font-medium text-foreground">definition</span>
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {matchTiles.map((tile) => {
+                            const done = matchMatched.has(tile.pairId);
+                            const selected = matchSelectedId === tile.id;
+                            return (
+                              <motion.button
+                                key={tile.id}
+                                type="button"
+                                disabled={done || matchComplete}
+                                onClick={() => handleMatchTileClick(tile)}
+                                className={cn(
+                                  "min-h-[4.5rem] rounded-xl border p-2 text-left text-xs leading-snug transition-colors sm:min-h-[5.5rem] sm:p-3 sm:text-sm",
+                                  done &&
+                                    "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+                                  !done &&
+                                    selected &&
+                                    (theme === "dark"
+                                      ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                                      : "border-primary bg-primary/5 ring-2 ring-primary/20"),
+                                  !done &&
+                                    !selected &&
+                                    (theme === "dark"
+                                      ? "border-border bg-card hover:border-foreground/25"
+                                      : "border-border/60 bg-white hover:border-foreground/20")
+                                )}
+                                whileTap={done || matchComplete ? undefined : { scale: 0.98 }}
+                              >
+                                <span
+                                  className={cn(
+                                    "mb-1 block text-[10px] font-semibold uppercase tracking-wide",
+                                    tile.side === "term" ? "text-blue-600 dark:text-blue-400" : "text-violet-600 dark:text-violet-400"
+                                  )}
+                                >
+                                  {tile.side === "term" ? "Term" : "Definition"}
+                                </span>
+                                <span className="line-clamp-4 sm:line-clamp-5">{tile.text}</span>
+                              </motion.button>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : null}
