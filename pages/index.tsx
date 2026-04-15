@@ -920,22 +920,22 @@ export default function Home() {
 
             {/* Action buttons */}
             <div className="flex shrink-0 items-center gap-1">
-              {/* Study Mode - pill button */}
+              {/* Study Mode: primary CTA (distinct from icon-only header actions) */}
               <motion.button
                 type="button"
                 onClick={() => router.push("/study")}
                 className={cn(
-                  "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
+                  "relative flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-md ring-1 transition-all",
                   theme === "dark"
-                    ? "bg-white/10 text-white hover:bg-white/15"
-                    : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-950/50 ring-emerald-400/35 hover:brightness-110 hover:ring-emerald-300/50"
+                    : "bg-primary text-primary-foreground shadow-primary/30 ring-primary/40 hover:bg-primary/92 hover:shadow-lg"
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                title="Study Mode"
+                title="Open Study Mode: quizzes, flashcards, and practice"
               >
-                <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Study</span>
+                <BookOpen className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
+                <span className="pr-0.5">Study</span>
               </motion.button>
 
               {/* Divider */}
@@ -1053,7 +1053,7 @@ export default function Home() {
                         Getting started
                       </p>
                       <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                        Your ledger-minded copilot
+                        The Accountant&apos;s Companion
                       </h2>
                       <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
                         Ask technical questions, walk through standards, or draft journal logic. Use the
