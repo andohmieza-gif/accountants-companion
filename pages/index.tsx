@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
@@ -33,7 +34,6 @@ import { Sidebar, type Conversation, type ChatMessage } from "@/components/sideb
 import { RatingModal } from "@/components/rating-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { CalculatorWidget } from "@/components/calculator-widget";
-import { StudyMode } from "@/components/study-mode";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "accountants-companion-v2";
@@ -206,6 +206,7 @@ async function fetchFollowups(question: string, answer: string): Promise<string[
 }
 
 export default function Home() {
+  const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -222,7 +223,6 @@ export default function Home() {
   const [theme, setTheme] = useState<Theme>("light");
   const [ratingShownThisSession, setRatingShownThisSession] = useState(false);
   const [currentFollowups, setCurrentFollowups] = useState<string[]>([]);
-  const [showStudyMode, setShowStudyMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -905,7 +905,7 @@ export default function Home() {
               {/* Study Mode - pill button */}
               <motion.button
                 type="button"
-                onClick={() => setShowStudyMode(true)}
+                onClick={() => router.push("/study")}
                 className={cn(
                   "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
                   theme === "dark"
@@ -1462,9 +1462,6 @@ export default function Home() {
 
       {/* Calculator Widget */}
       <CalculatorWidget theme={theme} />
-
-      {/* Study Mode */}
-      <StudyMode isOpen={showStudyMode} onClose={() => setShowStudyMode(false)} theme={theme} />
 
       {/* Toast */}
       <AnimatePresence>

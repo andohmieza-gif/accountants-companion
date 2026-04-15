@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X,
   BookOpen,
   Brain,
   FileSpreadsheet,
@@ -177,9 +176,7 @@ interface Flashcard {
   back: string;
 }
 
-interface StudyModeProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface StudyModeProps {
   theme: "light" | "dark";
 }
 
@@ -291,7 +288,7 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   return shuffled;
 };
 
-export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
+export function StudyMode({ theme }: StudyModeProps) {
   const [activeTab, setActiveTab] = useState<Tab>("quiz");
   const [quizTopic, setQuizTopic] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
@@ -329,7 +326,6 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
   
-  const modalRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load settings and stats from localStorage
@@ -541,7 +537,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   // Keyboard shortcuts for quiz
   useEffect(() => {
     const question = quizQuestions[currentQuestionIndex];
-    if (!isOpen || activeTab !== "quiz" || !question || showResult || loading) return;
+    if (activeTab !== "quiz" || !question || showResult || loading) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key;
@@ -555,11 +551,11 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, activeTab, quizQuestions, currentQuestionIndex, showResult, loading]);
+  }, [activeTab, quizQuestions, currentQuestionIndex, showResult, loading]);
 
   // Space/Enter to continue after answer
   useEffect(() => {
-    if (!isOpen || activeTab !== "quiz" || !showResult) return;
+    if (activeTab !== "quiz" || !showResult) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === " " || e.key === "Enter") {
@@ -570,7 +566,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, activeTab, showResult]);
+  }, [activeTab, showResult]);
 
   const nextQuestion = () => {
     if (currentQuestionIndex < quizQuestions.length - 1) {
@@ -626,7 +622,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   // Keyboard shortcuts for flashcards
   useEffect(() => {
     const card = flashcards[currentCardIndex];
-    if (!isOpen || activeTab !== "flashcards" || !card || loading) return;
+    if (activeTab !== "flashcards" || !card || loading) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === " ") {
@@ -643,7 +639,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
     
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, activeTab, flashcards, currentCardIndex, loading]);
+  }, [activeTab, flashcards, currentCardIndex, loading]);
 
   const addJournalRow = () => {
     setJournalEntries([...journalEntries, { account: "", debit: "", credit: "" }]);
@@ -735,32 +731,15 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-          {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", duration: 0.3, bounce: 0.2 }}
             className={cn(
-              "relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl",
+              "relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-sm sm:rounded-2xl",
               theme === "dark" ? "bg-background" : "bg-white"
             )}
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-4">
                 <div className={cn(
                   "flex h-12 w-12 items-center justify-center rounded-2xl",
@@ -806,16 +785,6 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                 >
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </button>
-                {/* Close button */}
-                <button
-                  onClick={onClose}
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
-                    theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
-                  )}
-                >
-                  <X className="h-5 w-5 text-muted-foreground" />
-                </button>
               </div>
             </div>
 
@@ -828,13 +797,13 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="overflow-hidden border-b border-border/40"
+                  className="shrink-0 overflow-x-hidden border-b border-border/40"
                 >
-                  <div className="px-6 py-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between py-1">
-                        <div className="flex items-center gap-3">
-                          {settings.soundEnabled ? <Volume2 className="h-4 w-4 text-muted-foreground" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                  <div className="px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3 py-1">
+                        <div className="flex min-w-0 items-center gap-3">
+                          {settings.soundEnabled ? <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" /> : <VolumeX className="h-4 w-4 shrink-0 text-muted-foreground" />}
                           <span className="text-sm">Sound Effects</span>
                         </div>
                         <button
@@ -852,9 +821,9 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                         </button>
                       </div>
                       
-                      <div className="flex items-center justify-between py-1">
-                        <div className="flex items-center gap-3">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex items-center justify-between gap-3 py-1">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="text-sm">Timed Mode</span>
                         </div>
                         <button
@@ -872,23 +841,30 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between py-1">
-                        <div className="flex items-center gap-3">
-                          <Zap className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Difficulty</span>
+                      <div className="flex flex-col gap-1.5 py-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">Quiz difficulty</span>
                         </div>
-                        <div className={cn(
-                          "flex gap-0.5 rounded-lg p-0.5",
-                          theme === "dark" ? "bg-muted" : "bg-neutral-100"
-                        )}>
+                        <div
+                          role="group"
+                          aria-label="Quiz difficulty"
+                          className={cn(
+                            "grid w-full shrink-0 grid-cols-3 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
+                            theme === "dark" ? "bg-muted" : "bg-neutral-100"
+                          )}
+                        >
                           {(["easy", "medium", "hard"] as Difficulty[]).map((diff) => (
                             <button
                               key={diff}
+                              type="button"
                               onClick={() => updateSettings({ difficulty: diff })}
                               className={cn(
-                                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                                "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
                                 settings.difficulty === diff
-                                  ? "bg-background shadow-sm"
+                                  ? theme === "dark"
+                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                                    : "bg-white text-foreground shadow-sm ring-1 ring-neutral-200"
                                   : "text-muted-foreground hover:text-foreground"
                               )}
                             >
@@ -898,12 +874,17 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                         </div>
                       </div>
                     </div>
-                    
-                    {settings.timedMode && (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        ⏱️ {DIFFICULTY_CONFIG[settings.difficulty].time}s per question
-                      </p>
-                    )}
+
+                    <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                      Difficulty sets quiz timer length when Timed Mode is on.
+                      {settings.timedMode && (
+                        <>
+                          {" "}
+                          Now: {DIFFICULTY_CONFIG[settings.difficulty].time}s/question (
+                          {DIFFICULTY_CONFIG[settings.difficulty].label}).
+                        </>
+                      )}
+                    </p>
                   </div>
                 </motion.div>
               )}
@@ -915,9 +896,9 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="overflow-hidden border-b border-border/40"
+                  className="shrink-0 overflow-hidden border-b border-border/40"
                 >
-                  <div className="px-6 py-4">
+                  <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <div className="grid grid-cols-4 gap-2">
                       <div className={cn(
                         "rounded-lg p-2 text-center",
@@ -959,7 +940,7 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
 
             {/* Tabs */}
             <div className={cn(
-              "mx-6 flex gap-1 rounded-xl p-1 sm:gap-2 sm:p-1.5",
+              "mx-0 mb-1 flex shrink-0 gap-1 rounded-xl p-1 sm:mb-0 sm:gap-2 sm:p-1.5",
               theme === "dark" ? "bg-card" : "bg-neutral-100"
             )}>
               {tabs.map((tab) => (
@@ -982,8 +963,8 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
               ))}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-6">
+            {/* Content — min-h-0 so this region scrolls instead of clipping header/settings */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
               <AnimatePresence mode="wait">
                 {/* Quiz Tab */}
                 {activeTab === "quiz" && (
@@ -1800,8 +1781,5 @@ export function StudyMode({ isOpen, onClose, theme }: StudyModeProps) {
               </AnimatePresence>
             </div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
