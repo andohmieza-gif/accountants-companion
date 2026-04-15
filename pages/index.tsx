@@ -236,6 +236,8 @@ export default function Home() {
   const animationFrameRef = useRef<number | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  /** Radix ScrollArea viewport (the node that actually scrolls). */
+  const chatViewportRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -306,7 +308,11 @@ export default function Home() {
   }, []);
 
   const scrollToTop = useCallback(() => {
-    bottomRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
+    const el = chatViewportRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }, []);
 
   const releaseCaptureHardware = useCallback(async () => {
@@ -1090,7 +1096,7 @@ export default function Home() {
 
         {/* Chat area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1" viewportRef={chatViewportRef}>
             <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
               <AnimatePresence mode="wait">
                 {chat.length === 0 ? (
