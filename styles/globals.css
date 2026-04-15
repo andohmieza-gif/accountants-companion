@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Light mode — warm paper + slate type + emerald accent (distinct from flat white/black chat UIs) */
+    /* Light mode: warm paper + slate type + emerald accent (distinct from flat white/black chat UIs) */
     --background: 43 32% 96%;
     --foreground: 222 32% 13%;
     --card: 42 28% 99%;

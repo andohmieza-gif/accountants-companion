@@ -955,7 +955,7 @@ export function StudyMode({ theme }: StudyModeProps) {
               ))}
             </div>
 
-            {/* Content — min-h-0 so this region scrolls instead of clipping header/settings */}
+            {/* Content: min-h-0 so this region scrolls instead of clipping header/settings */}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
               <AnimatePresence mode="wait">
                 {/* Quiz Tab */}
@@ -1476,7 +1476,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!matchTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Pair each term with its definition. Cards are generated for match play—definitions avoid repeating the term so pairing stays a real recall check.
+                          Pair each term with its definition. Cards are generated for match play: definitions avoid repeating the term so pairing stays a real recall check.
                         </p>
                         <div className="space-y-3">
                           {MATCH_TOPICS.map((topic) => (

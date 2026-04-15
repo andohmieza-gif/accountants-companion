@@ -17,9 +17,7 @@ import {
   Bookmark,
   BookmarkCheck,
   FileText,
-  ChevronDown,
   User,
-  Bot,
   ArrowUp,
   Mic,
   MicOff,
@@ -893,28 +891,34 @@ export default function Home() {
         {/* Modern Header */}
         <header
           className={cn(
-            "relative z-10 px-4 py-2.5 md:px-6",
-            theme === "dark" ? "bg-background/80 backdrop-blur-xl" : "bg-background/85 backdrop-blur-xl"
+            "relative z-10 border-b px-4 py-3 md:px-6",
+            theme === "dark"
+              ? "border-emerald-500/10 bg-background/80 backdrop-blur-xl"
+              : "border-emerald-900/10 bg-background/90 backdrop-blur-xl"
           )}
         >
-          <div className="mx-auto flex max-w-4xl items-center justify-between">
-            {/* Logo - centered on mobile, left on desktop */}
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3 pl-12 lg:pl-0">
-              <motion.div 
+              <motion.div
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                  theme === "dark" ? "bg-white/10" : "bg-muted"
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+                  theme === "dark"
+                    ? "bg-white/10 ring-white/15"
+                    : "bg-primary/10 ring-primary/20"
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Sparkles
-                  className={cn("h-5 w-5", theme === "dark" ? "text-white" : "text-emerald-800")}
+                  className={cn("h-5 w-5", theme === "dark" ? "text-emerald-200" : "text-emerald-800")}
                 />
               </motion.div>
-              <span className="hidden text-sm font-medium text-muted-foreground sm:block">
-                The Accountant&apos;s Companion
-              </span>
+              <div className="hidden min-w-0 sm:block">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Workspace</p>
+                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  The Accountant&apos;s Companion
+                </p>
+              </div>
             </div>
 
             {/* Action buttons */}
@@ -1037,7 +1041,7 @@ export default function Home() {
         {/* Chat area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
           <ScrollArea className="flex-1">
-            <div className="mx-auto max-w-3xl px-4 py-6 md:px-8">
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8">
               <AnimatePresence mode="wait">
                 {chat.length === 0 ? (
                   <motion.div
@@ -1045,40 +1049,49 @@ export default function Home() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="flex min-h-[60vh] flex-col items-center justify-center pt-8"
+                    className="mx-auto flex min-h-[58vh] w-full max-w-4xl flex-col items-start pt-4 md:pt-8"
                   >
-                    <div className="text-center">
-                      <h2 className="text-2xl font-semibold tracking-tight">What can I help with?</h2>
-                      <p className="mt-2 text-muted-foreground">
-                        Ask about accounting standards, journal entries, or CPA exam topics
+                    <div className="max-w-2xl border-b border-border/50 pb-8 md:pb-10">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+                        Getting started
+                      </p>
+                      <h2 className="mt-2 text-balance text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                        Your ledger-minded copilot
+                      </h2>
+                      <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+                        Ask technical questions, walk through standards, or draft journal logic. Use the
+                        starters below or type your own. Everything saves in{" "}
+                        <span className="font-medium text-foreground/90">Threads</span> in the sidebar.
                       </p>
                     </div>
 
-                    <div className="mt-10 w-full max-w-2xl space-y-6">
+                    <div className="mt-8 w-full space-y-8 md:mt-10">
                       {TEMPLATES.map((section, sectionIdx) => (
                         <motion.div
                           key={section.category}
-                          initial={{ opacity: 0, y: 12 }}
+                          initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.1 + sectionIdx * 0.08 }}
+                          transition={{ delay: 0.06 + sectionIdx * 0.05 }}
                         >
-                          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/60">
+                          <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {section.category}
                           </p>
-                          <div className="grid gap-2 sm:grid-cols-3">
+                          <div className="grid gap-2 sm:grid-cols-2">
                             {section.items.map((suggestion) => (
                               <button
                                 key={suggestion}
                                 type="button"
                                 onClick={() => setInput(suggestion)}
                                 className={cn(
-                                  "group rounded-xl border px-4 py-3 text-left text-sm transition-all",
+                                  "group rounded-lg border border-border/60 border-l-4 border-l-primary/45 bg-card px-4 py-3 text-left text-sm transition-all",
                                   theme === "dark"
-                                    ? "border-border/60 bg-card hover:border-foreground/20 hover:bg-card/80"
-                                    : "border-border/70 bg-card hover:border-emerald-800/25 hover:shadow-md"
+                                    ? "hover:border-border hover:border-l-primary/80 hover:bg-card/90"
+                                    : "hover:border-emerald-900/15 hover:border-l-primary hover:shadow-sm"
                                 )}
                               >
-                                <span className="text-foreground/80 group-hover:text-foreground">{suggestion}</span>
+                                <span className="leading-snug text-foreground/85 group-hover:text-foreground">
+                                  {suggestion}
+                                </span>
                               </button>
                             ))}
                           </div>
@@ -1088,7 +1101,7 @@ export default function Home() {
                   </motion.div>
                 ) : (
                   <motion.div key="chat" className="space-y-6 pb-4">
-                    {chat.map((msg, index) => (
+                    {chat.map((msg) => (
                       <motion.div
                         key={msg.id}
                         initial={{ opacity: 0, y: 16 }}
@@ -1109,7 +1122,6 @@ export default function Home() {
                             msg.sender === "user" ? "items-end" : "items-stretch"
                           )}
                         >
-                          {/* Avatar + bubble only — items-center keeps avatar vertically centered on the bubble */}
                           <div
                             className={cn(
                               "flex gap-3",
@@ -1140,7 +1152,6 @@ export default function Home() {
                                 msg.sender === "user" ? "w-fit max-w-full" : "w-full min-w-0 flex-1"
                               )}
                             >
-                              {/* Action buttons */}
                               {messagePlainText(msg).trim().length > 0 &&
                                 !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
                                   <div className={cn(
@@ -1223,7 +1234,6 @@ export default function Home() {
                               </div>
                             </div>
                           </div>
-                          {/* Inset by avatar (h-8) + gap-3 so the time lines up with the bubble, not under the avatar */}
                           <p
                             className={cn(
                               "mt-1.5 text-[10px] text-muted-foreground/50",
@@ -1235,7 +1245,6 @@ export default function Home() {
                         </div>
                       </motion.div>
                     ))}
-                    {/* Regenerate button and suggested follow-ups after last bot message */}
                     {chat.length >= 2 && !loading && chat[chat.length - 1]?.sender === "bot" && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -1255,7 +1264,6 @@ export default function Home() {
                           </Button>
                         </div>
 
-                        {/* Suggested follow-ups */}
                         {suggestedFollowups.length > 0 && (
                           <div className="pl-1">
                             <p className="mb-2 text-xs font-medium text-muted-foreground/70">Follow-up questions</p>
@@ -1300,13 +1308,13 @@ export default function Home() {
             <div className="mx-auto max-w-3xl">
               <div
                 className={cn(
-                  "flex items-end gap-2 rounded-2xl border p-2 transition-all focus-within:border-foreground/20 focus-within:shadow-lg",
+                  "flex items-end gap-2 rounded-xl border border-border/70 border-l-4 border-l-primary/40 p-2 transition-all focus-within:border-primary/30 focus-within:shadow-md",
                   theme === "dark" ? "border-border/50 bg-card" : "border-border/70 bg-background shadow-sm"
                 )}
               >
                 <textarea
                   ref={inputRef}
-                  placeholder="Ask an accounting question..."
+                  placeholder="e.g. ASC 606 performance obligations, or a prepaid rent entry…"
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);

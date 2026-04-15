@@ -32,7 +32,7 @@ interface SidebarProps {
   onCollapse: () => void;
   onSelect: (id: string) => void;
   onNew: () => void;
-  /** Opens delete confirmation in parent — do not remove from list here. */
+  /** Opens delete confirmation in parent. Do not remove from list here. */
   onRequestDelete: (id: string) => void;
 }
 
@@ -200,9 +200,15 @@ function SidebarContent({
     <>
       <div className="border-b border-border/40 p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-foreground">Chats</h2>
+          <h2 className="text-sm font-semibold text-foreground">Threads</h2>
           <div className="flex items-center gap-1">
-            <Button type="button" onClick={onNew} size="sm" className="shrink-0 gap-1.5 rounded-xl">
+            <Button
+              type="button"
+              onClick={onNew}
+              size="sm"
+              variant="outline"
+              className="shrink-0 gap-1.5 rounded-lg border-primary/35 bg-background hover:bg-primary/10"
+            >
               <Plus className="h-4 w-4" />
               New
             </Button>

@@ -40,7 +40,7 @@ export default function StudyPage() {
   return (
     <>
       <Head>
-        <title>Study Mode — The Accountant&apos;s Companion</title>
+        <title>Study Mode · The Accountant&apos;s Companion</title>
       </Head>
       <div
         className={cn(

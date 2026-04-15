@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 type Theme = "light" | "dark";
 
 /**
- * Top bar aligned with the chat app header — used on the full-page Study route.
+ * Top bar aligned with the chat app header, used on the full-page Study route.
  */
 export function StudyChromeHeader({
   theme,
@@ -18,28 +18,33 @@ export function StudyChromeHeader({
   return (
     <header
       className={cn(
-        "relative z-10 shrink-0 px-4 py-2.5 md:px-6",
-        theme === "dark" ? "bg-background/80 backdrop-blur-xl" : "bg-background/85 backdrop-blur-xl"
+        "relative z-10 shrink-0 border-b px-4 py-3 md:px-6",
+        theme === "dark"
+          ? "border-emerald-500/10 bg-background/80 backdrop-blur-xl"
+          : "border-emerald-900/10 bg-background/90 backdrop-blur-xl"
       )}
     >
-      <div className="mx-auto flex max-w-4xl items-center justify-between">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
         <Link
           href="/"
           className="flex min-w-0 items-center gap-3 rounded-xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
         >
           <motion.div
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-              theme === "dark" ? "bg-white/10" : "bg-muted"
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
+              theme === "dark" ? "bg-white/10 ring-white/15" : "bg-primary/10 ring-primary/20"
             )}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Sparkles className={cn("h-5 w-5", theme === "dark" ? "text-white" : "text-emerald-800")} />
+            <Sparkles className={cn("h-5 w-5", theme === "dark" ? "text-emerald-200" : "text-emerald-800")} />
           </motion.div>
-          <span className="hidden text-sm font-medium text-muted-foreground sm:block">
-            The Accountant&apos;s Companion
-          </span>
+          <div className="hidden min-w-0 sm:block">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Study</p>
+            <p className="truncate text-sm font-semibold tracking-tight text-foreground">
+              The Accountant&apos;s Companion
+            </p>
+          </div>
         </Link>
 
         <div className="flex shrink-0 items-center gap-1">
