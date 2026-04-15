@@ -229,6 +229,10 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  /** Must be disconnected before closing context so mobile OS releases the mic promptly. */
+  const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  /** Active getUserMedia stream; tracks stopped in onstop (and on error paths). */
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -305,14 +309,55 @@ export default function Home() {
     bottomRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const startRecording = useCallback(async () => {
+  const releaseCaptureHardware = useCallback(async () => {
+    if (animationFrameRef.current != null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    analyserRef.current = null;
+
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setAudioLevel(0);
+    setRecordingTime(0);
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamSourceRef.current?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    mediaStreamSourceRef.current = null;
+
+    const stream = mediaStreamRef.current;
+    mediaStreamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+
+    const ctx = audioContextRef.current;
+    audioContextRef.current = null;
+    if (ctx && ctx.state !== "closed") {
+      try {
+        await ctx.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    mediaRecorderRef.current = null;
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) =>
         MediaRecorder.isTypeSupported(t)
       );
-      
+
       if (!mimeType) {
+        stream.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
         setToast("Audio recording not supported");
         return;
       }
@@ -321,19 +366,19 @@ export default function Home() {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
+      mediaStreamSourceRef.current = source;
       source.connect(analyser);
       analyser.fftSize = 256;
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
 
-      // Animate audio levels
+      // Animate audio levels (stops once analyserRef is cleared in stopRecording / releaseCaptureHardware)
       const updateAudioLevel = () => {
-        if (analyserRef.current) {
-          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-          setAudioLevel(avg / 255);
-        }
+        if (!analyserRef.current) return;
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setAudioLevel(avg / 255);
         animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
       };
       updateAudioLevel();
@@ -355,15 +400,9 @@ export default function Home() {
       };
 
       mediaRecorder.onstop = async () => {
-        // Clean up audio analysis
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        if (audioContextRef.current) audioContextRef.current.close();
-        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-        setAudioLevel(0);
-        setRecordingTime(0);
-        
-        stream.getTracks().forEach((track) => track.stop());
-        
+        // Release mic and WebAudio first so mobile OS clears the indicator before network work
+        await releaseCaptureHardware();
+
         if (audioChunksRef.current.length === 0) return;
 
         setIsTranscribing(true);
@@ -377,7 +416,7 @@ export default function Home() {
             method: "POST",
             body: formData,
           });
-          
+
           if (res.ok) {
             const data = await res.json();
             if (data.text) {
@@ -396,20 +435,34 @@ export default function Home() {
 
       mediaRecorder.start(200);
       setIsListening(true);
-    } catch (err) {
+    } catch {
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
       setToast("Microphone access denied");
     }
-  }, []);
+  }, [releaseCaptureHardware]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.stop();
+    const rec = mediaRecorderRef.current;
+    if (rec && (rec.state === "recording" || rec.state === "paused")) {
+      rec.stop();
+    } else {
+      void releaseCaptureHardware();
     }
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (animationFrameRef.current != null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    analyserRef.current = null;
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
     setIsListening(false);
     setAudioLevel(0);
-  }, []);
+  }, [releaseCaptureHardware]);
 
   // Global mouse/touch up to stop recording (for press-and-hold UX)
   // Only stops if held for more than 500ms (otherwise treat as tap-to-toggle)
