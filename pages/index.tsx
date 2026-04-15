@@ -859,7 +859,7 @@ export default function Home() {
         "relative flex h-screen overflow-hidden transition-colors",
         theme === "dark"
           ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
-          : "bg-neutral-50"
+          : "bg-gradient-to-b from-background via-background to-emerald-50/25"
       )}
     >
       {/* Dark: soft blue / cyan ambient (restored from earlier design) */}
@@ -894,7 +894,7 @@ export default function Home() {
         <header
           className={cn(
             "relative z-10 px-4 py-2.5 md:px-6",
-            theme === "dark" ? "bg-background/80 backdrop-blur-xl" : "bg-white/80 backdrop-blur-xl"
+            theme === "dark" ? "bg-background/80 backdrop-blur-xl" : "bg-background/85 backdrop-blur-xl"
           )}
         >
           <div className="mx-auto flex max-w-4xl items-center justify-between">
@@ -903,12 +903,14 @@ export default function Home() {
               <motion.div 
                 className={cn(
                   "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                  theme === "dark" ? "bg-white/10" : "bg-black/5"
+                  theme === "dark" ? "bg-white/10" : "bg-muted"
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <Sparkles className={cn("h-5 w-5", theme === "dark" ? "text-white" : "text-black")} />
+                <Sparkles
+                  className={cn("h-5 w-5", theme === "dark" ? "text-white" : "text-emerald-800")}
+                />
               </motion.div>
               <span className="hidden text-sm font-medium text-muted-foreground sm:block">
                 The Accountant&apos;s Companion
@@ -925,7 +927,7 @@ export default function Home() {
                   "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
                   theme === "dark"
                     ? "bg-white/10 text-white hover:bg-white/15"
-                    : "bg-black/5 text-black hover:bg-black/10"
+                    : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -936,7 +938,7 @@ export default function Home() {
               </motion.button>
 
               {/* Divider */}
-              <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-black/10")} />
+              <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-border")} />
 
               {/* Export dropdown */}
               <div className="relative">
@@ -950,7 +952,7 @@ export default function Home() {
                       ? "text-muted-foreground/30 cursor-not-allowed"
                       : theme === "dark"
                         ? "text-white/60 hover:bg-white/10 hover:text-white"
-                        : "text-black/60 hover:bg-black/5 hover:text-black"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
                   whileHover={activeConversation?.messages.length ? { scale: 1.05 } : {}}
                   whileTap={activeConversation?.messages.length ? { scale: 0.95 } : {}}
@@ -967,7 +969,7 @@ export default function Home() {
                       transition={{ duration: 0.15, ease: "easeOut" }}
                       className={cn(
                         "absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-xl border p-1.5 shadow-xl",
-                        theme === "dark" ? "border-white/10 bg-card" : "border-black/10 bg-white"
+                        theme === "dark" ? "border-white/10 bg-card" : "border-border bg-card shadow-md"
                       )}
                     >
                       <button
@@ -1004,7 +1006,7 @@ export default function Home() {
                   "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                   theme === "dark"
                     ? "text-white/60 hover:bg-white/10 hover:text-white"
-                    : "text-black/60 hover:bg-black/5 hover:text-black"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -1020,7 +1022,7 @@ export default function Home() {
                   "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
                   theme === "dark"
                     ? "text-white/60 hover:bg-white/10 hover:text-white"
-                    : "text-black/60 hover:bg-black/5 hover:text-black"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -1073,7 +1075,7 @@ export default function Home() {
                                   "group rounded-xl border px-4 py-3 text-left text-sm transition-all",
                                   theme === "dark"
                                     ? "border-border/60 bg-card hover:border-foreground/20 hover:bg-card/80"
-                                    : "border-border/50 bg-white hover:border-foreground/20 hover:shadow-md"
+                                    : "border-border/70 bg-card hover:border-emerald-800/25 hover:shadow-md"
                                 )}
                               >
                                 <span className="text-foreground/80 group-hover:text-foreground">{suggestion}</span>
@@ -1096,15 +1098,20 @@ export default function Home() {
                           stiffness: 400,
                           damping: 25,
                         }}
-                        className={cn("flex gap-3", msg.sender === "user" ? "flex-row-reverse" : "flex-row")}
+                        className={cn(
+                          "flex items-start gap-3",
+                          msg.sender === "user" ? "flex-row-reverse" : "flex-row"
+                        )}
                       >
-                        {/* Avatar */}
+                        {/* Avatar — align to bubble only; timestamp sits in sibling column below bubble */}
                         <div
                           className={cn(
                             "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
                             msg.sender === "user"
-                              ? "bg-foreground text-background"
-                              : theme === "dark" ? "bg-card border border-border/50" : "bg-muted"
+                              ? theme === "dark"
+                                ? "bg-foreground text-background"
+                                : "bg-emerald-950 text-emerald-50"
+                              : theme === "dark" ? "bg-card border border-border/50" : "bg-card border border-border/60 shadow-sm"
                           )}
                         >
                           {msg.sender === "user" ? (
@@ -1116,89 +1123,102 @@ export default function Home() {
 
                         <div
                           className={cn(
-                            "group/msg relative max-w-[85%] sm:max-w-[75%]",
+                            "flex min-w-0 max-w-[85%] flex-col sm:max-w-[75%]",
+                            msg.sender === "user" ? "items-end" : "items-stretch"
                           )}
                         >
-                          {/* Action buttons */}
-                          {messagePlainText(msg).trim().length > 0 &&
-                            !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
-                              <div className={cn(
-                                "absolute -top-2 z-10 flex gap-1",
-                                msg.sender === "user" ? "left-0" : "right-0"
-                              )}>
-                                <button
-                                  type="button"
-                                  onClick={() => void copyMessage(msg)}
-                                  className={cn(
-                                    "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
-                                    "opacity-0 group-hover/msg:opacity-100"
-                                  )}
-                                  title="Copy"
-                                  aria-label="Copy message"
-                                >
-                                  {copiedMessageId === msg.id ? (
-                                    <Check className="h-3 w-3 text-emerald-500" aria-hidden />
-                                  ) : (
-                                    <Copy className="h-3 w-3" aria-hidden />
-                                  )}
-                                </button>
-                                {msg.sender === "bot" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleBookmark(msg.id)}
-                                    className={cn(
-                                      "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
-                                      "opacity-0 group-hover/msg:opacity-100",
-                                      msg.bookmarked && "text-amber-500 opacity-100"
-                                    )}
-                                    title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
-                                    aria-label={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
-                                  >
-                                    {msg.bookmarked ? (
-                                      <BookmarkCheck className="h-3 w-3" aria-hidden />
-                                    ) : (
-                                      <Bookmark className="h-3 w-3" aria-hidden />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            )}
                           <div
                             className={cn(
-                              "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                              msg.sender === "user"
-                                ? "bg-foreground text-background"
-                                : cn("border border-border/50", theme === "dark" ? "bg-card" : "bg-white shadow-sm")
+                              "group/msg relative min-w-0",
+                              msg.sender === "user" ? "w-fit max-w-full" : "w-full"
                             )}
                           >
-                            {msg.sender === "bot" && msg.isHtml ? (
-                              <div dangerouslySetInnerHTML={{ __html: msg.content }} />
-                            ) : msg.sender === "bot" && !msg.content && loading && msg.id === activeBotId ? (
-                              <div className="flex items-center gap-1 py-1">
-                                {[0, 1, 2].map((i) => (
-                                  <motion.div
-                                    key={i}
-                                    className="h-2 w-2 rounded-full bg-muted-foreground/60"
-                                    animate={{ y: [0, -6, 0] }}
-                                    transition={{
-                                      duration: 0.6,
-                                      repeat: Infinity,
-                                      delay: i * 0.15,
-                                      ease: "easeInOut",
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                            ) : msg.sender === "user" ? (
-                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                            ) : (
-                              <MarkdownRenderer content={msg.content} />
-                            )}
+                            {/* Action buttons */}
+                            {messagePlainText(msg).trim().length > 0 &&
+                              !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
+                                <div className={cn(
+                                  "absolute -top-2 z-10 flex gap-1",
+                                  msg.sender === "user" ? "left-0" : "right-0"
+                                )}>
+                                  <button
+                                    type="button"
+                                    onClick={() => void copyMessage(msg)}
+                                    className={cn(
+                                      "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                      "opacity-0 group-hover/msg:opacity-100"
+                                    )}
+                                    title="Copy"
+                                    aria-label="Copy message"
+                                  >
+                                    {copiedMessageId === msg.id ? (
+                                      <Check className="h-3 w-3 text-emerald-500" aria-hidden />
+                                    ) : (
+                                      <Copy className="h-3 w-3" aria-hidden />
+                                    )}
+                                  </button>
+                                  {msg.sender === "bot" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleBookmark(msg.id)}
+                                      className={cn(
+                                        "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                        "opacity-0 group-hover/msg:opacity-100",
+                                        msg.bookmarked && "text-amber-500 opacity-100"
+                                      )}
+                                      title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
+                                      aria-label={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
+                                    >
+                                      {msg.bookmarked ? (
+                                        <BookmarkCheck className="h-3 w-3" aria-hidden />
+                                      ) : (
+                                        <Bookmark className="h-3 w-3" aria-hidden />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            <div
+                              className={cn(
+                                "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                                msg.sender === "user"
+                                  ? theme === "dark"
+                                    ? "bg-foreground text-background"
+                                    : "bg-emerald-950 text-emerald-50"
+                                  : cn(
+                                      "border border-border/50",
+                                      theme === "dark" ? "bg-card" : "bg-card shadow-sm"
+                                    )
+                              )}
+                            >
+                              {msg.sender === "bot" && msg.isHtml ? (
+                                <div dangerouslySetInnerHTML={{ __html: msg.content }} />
+                              ) : msg.sender === "bot" && !msg.content && loading && msg.id === activeBotId ? (
+                                <div className="flex items-center gap-1 py-1">
+                                  {[0, 1, 2].map((i) => (
+                                    <motion.div
+                                      key={i}
+                                      className="h-2 w-2 rounded-full bg-muted-foreground/60"
+                                      animate={{ y: [0, -6, 0] }}
+                                      transition={{
+                                        duration: 0.6,
+                                        repeat: Infinity,
+                                        delay: i * 0.15,
+                                        ease: "easeInOut",
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              ) : msg.sender === "user" ? (
+                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              ) : (
+                                <MarkdownRenderer content={msg.content} />
+                              )}
+                            </div>
                           </div>
                           <p
                             className={cn(
                               "mt-1.5 text-[10px] text-muted-foreground/50",
-                              msg.sender === "user" ? "text-right" : "text-left"
+                              msg.sender === "user" ? "self-end text-right" : "text-left"
                             )}
                           >
                             {msg.time}
@@ -1240,7 +1260,7 @@ export default function Home() {
                                     "rounded-full border px-3 py-1.5 text-xs transition-all hover:shadow-sm",
                                     theme === "dark"
                                       ? "border-border/50 bg-card/60 text-muted-foreground hover:border-primary/40 hover:bg-card hover:text-foreground"
-                                      : "border-border/60 bg-white/60 text-muted-foreground hover:border-primary/30 hover:bg-white hover:text-foreground"
+                                      : "border-border/70 bg-card/80 text-muted-foreground hover:border-emerald-800/30 hover:bg-card hover:text-foreground"
                                   )}
                                 >
                                   {suggestion}
@@ -1263,13 +1283,16 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className={cn("relative border-t border-border/40 px-4 py-4 backdrop-blur-xl md:px-8", theme === "dark" ? "bg-card/70" : "bg-white/70")}
+            className={cn(
+              "relative border-t border-border/40 px-4 py-4 backdrop-blur-xl md:px-8",
+              theme === "dark" ? "bg-card/70" : "bg-card/80"
+            )}
           >
             <div className="mx-auto max-w-3xl">
               <div
                 className={cn(
                   "flex items-end gap-2 rounded-2xl border p-2 transition-all focus-within:border-foreground/20 focus-within:shadow-lg",
-                  theme === "dark" ? "border-border/50 bg-card" : "border-border/60 bg-white shadow-sm"
+                  theme === "dark" ? "border-border/50 bg-card" : "border-border/70 bg-background shadow-sm"
                 )}
               >
                 <textarea

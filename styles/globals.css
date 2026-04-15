@@ -4,23 +4,23 @@
 
 @layer base {
   :root {
-    /* Light mode - neutral grays */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 9%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 9%;
-    --radius: 0.75rem;
+    /* Light mode — warm paper + slate type + emerald accent (distinct from flat white/black chat UIs) */
+    --background: 43 32% 96%;
+    --foreground: 222 32% 13%;
+    --card: 42 28% 99%;
+    --card-foreground: 222 32% 13%;
+    --primary: 158 58% 28%;
+    --primary-foreground: 152 81% 96%;
+    --secondary: 42 26% 92%;
+    --secondary-foreground: 222 28% 18%;
+    --muted: 42 22% 92%;
+    --muted-foreground: 220 12% 40%;
+    --accent: 158 40% 92%;
+    --accent-foreground: 158 58% 22%;
+    --border: 38 18% 86%;
+    --input: 38 18% 86%;
+    --ring: 158 50% 36%;
+    --radius: 0.625rem;
   }
 
   .dark {

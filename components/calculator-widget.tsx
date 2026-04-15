@@ -111,7 +111,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
           "fixed bottom-32 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors",
           theme === "dark"
             ? "bg-foreground text-background hover:bg-foreground/90"
-            : "bg-foreground text-background hover:bg-foreground/90"
+            : "bg-primary text-primary-foreground hover:bg-primary/90"
         )}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -138,7 +138,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
               className={cn(
                 "fixed bottom-32 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border shadow-2xl",
-                theme === "dark" ? "border-border/60 bg-card" : "border-border/40 bg-white"
+                theme === "dark" ? "border-border/60 bg-card" : "border-border/60 bg-card"
               )}
             >
               {/* Header */}

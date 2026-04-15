@@ -47,7 +47,7 @@ export default function StudyPage() {
           "relative flex h-[100dvh] min-h-0 flex-col overflow-hidden text-foreground transition-colors",
           theme === "dark"
             ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
-            : "bg-neutral-50"
+            : "bg-gradient-to-b from-background via-background to-emerald-50/25"
         )}
       >
         {theme === "dark" && (

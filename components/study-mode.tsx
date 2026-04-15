@@ -735,7 +735,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             animate={{ opacity: 1, scale: 1 }}
             className={cn(
               "relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-sm sm:rounded-2xl",
-              theme === "dark" ? "bg-background" : "bg-white"
+              theme === "dark" ? "bg-background" : "bg-card"
             )}
           >
             {/* Header */}
@@ -743,7 +743,7 @@ export function StudyMode({ theme }: StudyModeProps) {
               <div className="flex items-center gap-4">
                 <div className={cn(
                   "flex h-12 w-12 items-center justify-center rounded-2xl",
-                  theme === "dark" ? "bg-card" : "bg-neutral-100"
+                  theme === "dark" ? "bg-card" : "bg-muted"
                 )}>
                   <BookOpen className="h-6 w-6" />
                 </div>
@@ -761,9 +761,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                    showStats
-                      ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
-                      : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
+                    showStats ? "bg-card text-foreground" : "hover:bg-muted"
                   )}
                   title="View Stats"
                 >
@@ -777,9 +775,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                    showSettings
-                      ? theme === "dark" ? "bg-card text-foreground" : "bg-neutral-200"
-                      : theme === "dark" ? "hover:bg-card" : "hover:bg-neutral-100"
+                    showSettings ? "bg-card text-foreground" : "hover:bg-muted"
                   )}
                   title="Settings"
                 >
@@ -810,7 +806,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                           onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })}
                           className={cn(
                             "relative h-6 w-10 rounded-full transition-colors",
-                            settings.soundEnabled ? "bg-emerald-500" : theme === "dark" ? "bg-muted" : "bg-neutral-200"
+                            settings.soundEnabled ? "bg-emerald-500" : "bg-muted"
                           )}
                         >
                           <motion.div
@@ -830,7 +826,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                           onClick={() => updateSettings({ timedMode: !settings.timedMode })}
                           className={cn(
                             "relative h-6 w-10 rounded-full transition-colors",
-                            settings.timedMode ? "bg-emerald-500" : theme === "dark" ? "bg-muted" : "bg-neutral-200"
+                            settings.timedMode ? "bg-emerald-500" : "bg-muted"
                           )}
                         >
                           <motion.div
@@ -851,7 +847,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                           aria-label="Quiz difficulty"
                           className={cn(
                             "grid w-full shrink-0 grid-cols-3 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
-                            theme === "dark" ? "bg-muted" : "bg-neutral-100"
+                            "bg-muted"
                           )}
                         >
                           {(["easy", "medium", "hard"] as Difficulty[]).map((diff) => (
@@ -862,9 +858,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               className={cn(
                                 "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
                                 settings.difficulty === diff
-                                  ? theme === "dark"
-                                    ? "bg-card text-foreground shadow-sm ring-1 ring-border"
-                                    : "bg-white text-foreground shadow-sm ring-1 ring-neutral-200"
+                                  ? "bg-card text-foreground shadow-sm ring-1 ring-border"
                                   : "text-muted-foreground hover:text-foreground"
                               )}
                             >
@@ -902,14 +896,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                     <div className="grid grid-cols-4 gap-2">
                       <div className={cn(
                         "rounded-lg p-2 text-center",
-                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
+                        "bg-muted"
                       )}>
                         <p className="text-xl font-bold">{stats.totalQuizzes}</p>
                         <p className="text-[10px] text-muted-foreground">Quizzes</p>
                       </div>
                       <div className={cn(
                         "rounded-lg p-2 text-center",
-                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
+                        "bg-muted"
                       )}>
                         <p className="text-xl font-bold">
                           {stats.totalQuestions > 0 
@@ -920,14 +914,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                       </div>
                       <div className={cn(
                         "rounded-lg p-2 text-center",
-                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
+                        "bg-muted"
                       )}>
                         <p className="text-xl font-bold">{stats.bestStreak}</p>
                         <p className="text-[10px] text-muted-foreground">Best Streak</p>
                       </div>
                       <div className={cn(
                         "rounded-lg p-2 text-center",
-                        theme === "dark" ? "bg-muted" : "bg-neutral-50"
+                        "bg-muted"
                       )}>
                         <p className="text-xl font-bold">{stats.totalFlashcards}</p>
                         <p className="text-[10px] text-muted-foreground">Cards</p>
@@ -941,7 +935,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             {/* Tabs */}
             <div className={cn(
               "mx-0 mb-1 flex shrink-0 gap-1 rounded-xl p-1 sm:mb-0 sm:gap-2 sm:p-1.5",
-              theme === "dark" ? "bg-card" : "bg-neutral-100"
+              theme === "dark" ? "bg-card" : "bg-muted"
             )}>
               {tabs.map((tab) => (
                 <button
@@ -951,9 +945,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   className={cn(
                     "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all sm:gap-2 sm:px-2 sm:py-2.5 sm:text-sm",
                     activeTab === tab.id
-                      ? theme === "dark"
-                        ? "bg-background text-foreground shadow-sm"
-                        : "bg-white text-foreground shadow-sm"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -1123,7 +1115,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                     ? "bg-red-500/10 text-red-500 animate-pulse"
                                     : timeLeft <= 10
                                     ? "bg-amber-500/10 text-amber-500"
-                                    : theme === "dark" ? "bg-card" : "bg-neutral-100"
+                                    : "bg-muted"
                                 )}
                               >
                                 <Clock className="h-3.5 w-3.5" />
@@ -1154,7 +1146,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                           </div>
                           <div className={cn(
                             "h-2 overflow-hidden rounded-full",
-                            theme === "dark" ? "bg-card" : "bg-neutral-100"
+                            theme === "dark" ? "bg-card" : "bg-muted"
                           )}>
                             <motion.div
                               className={cn(
@@ -1193,7 +1185,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                       : "border-border/50 opacity-40"
                                     : cn(
                                         "border-border hover:border-foreground/20",
-                                        theme === "dark" ? "bg-card/50 hover:bg-card" : "hover:bg-neutral-50"
+                                        theme === "dark" ? "bg-card/50 hover:bg-card" : "hover:bg-muted/80"
                                       )
                                 )}
                                 whileHover={!showResult ? { scale: 1.01 } : {}}
@@ -1206,8 +1198,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                                       ? "bg-emerald-500 text-white"
                                       : isSelected
                                       ? "bg-red-500 text-white"
-                                      : theme === "dark" ? "bg-background" : "bg-neutral-100"
-                                    : theme === "dark" ? "bg-background" : "bg-neutral-100"
+                                      : "bg-muted"
+                                    : "bg-muted"
                                 )}>
                                   {showResult && isCorrect ? (
                                     <CheckCircle2 className="h-4 w-4" />
@@ -1377,7 +1369,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   "h-1.5 w-6 rounded-full transition-colors",
                                   i === currentCardIndex
                                     ? "bg-foreground"
-                                    : theme === "dark" ? "bg-card" : "bg-neutral-200"
+                                    : "bg-muted"
                                 )}
                               />
                             ))}
@@ -1391,7 +1383,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                               "relative h-64 w-full cursor-pointer rounded-2xl border-2 p-6",
                               isFlipped
                                 ? "border-emerald-500/50 bg-emerald-500/5"
-                                : theme === "dark" ? "border-border bg-card" : "border-border/60"
+                                : theme === "dark"
+                                  ? "border-border bg-card"
+                                  : "border-border/60 bg-card"
                             )}
                             onClick={() => setIsFlipped(!isFlipped)}
                             whileHover={{ scale: 1.02 }}
@@ -1401,7 +1395,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               "absolute left-4 top-4 rounded-full px-2.5 py-1 text-xs font-medium",
                               isFlipped
                                 ? "bg-emerald-500/10 text-emerald-600"
-                                : theme === "dark" ? "bg-background" : "bg-neutral-100"
+                                : "bg-muted"
                             )}>
                               {isFlipped ? "Answer" : "Question"}
                             </div>
@@ -1493,7 +1487,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
                                 theme === "dark"
                                   ? "border-border bg-card hover:border-foreground/20"
-                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                                  : "border-border/70 bg-card hover:border-emerald-800/25 hover:shadow-md"
                               )}
                               whileHover={{ scale: 1.01 }}
                               whileTap={{ scale: 0.99 }}
@@ -1623,7 +1617,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                     !selected &&
                                     (theme === "dark"
                                       ? "border-border bg-card hover:border-foreground/25"
-                                      : "border-border/60 bg-white hover:border-foreground/20")
+                                      : "border-border/60 bg-card hover:border-foreground/20")
                                 )}
                                 whileTap={done || matchComplete ? undefined : { scale: 0.98 }}
                               >
@@ -1672,7 +1666,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     )}>
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className={theme === "dark" ? "bg-card" : "bg-neutral-50"}>
+                          <tr className={theme === "dark" ? "bg-card" : "bg-muted/50"}>
                             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Account</th>
                             <th className="w-28 px-4 py-3 text-right font-medium text-muted-foreground">Debit</th>
                             <th className="w-28 px-4 py-3 text-right font-medium text-muted-foreground">Credit</th>
@@ -1690,7 +1684,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   placeholder={i === 0 ? "e.g., Cash" : i === 1 ? "e.g., Service Revenue" : "Account name"}
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 outline-none placeholder:text-muted-foreground/40",
-                                    theme === "dark" ? "focus:bg-card" : "focus:bg-neutral-50"
+                                    theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
                                   )}
                                 />
                               </td>
@@ -1702,7 +1696,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   placeholder="0.00"
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 text-right outline-none placeholder:text-muted-foreground/40",
-                                    theme === "dark" ? "focus:bg-card" : "focus:bg-neutral-50"
+                                    theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
                                   )}
                                 />
                               </td>
@@ -1714,7 +1708,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   placeholder="0.00"
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 text-right outline-none placeholder:text-muted-foreground/40",
-                                    theme === "dark" ? "focus:bg-card" : "focus:bg-neutral-50"
+                                    theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
                                   )}
                                 />
                               </td>
@@ -1734,7 +1728,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <tfoot>
                           <tr className={cn(
                             "border-t-2 font-medium",
-                            theme === "dark" ? "border-border bg-card" : "border-border bg-neutral-50"
+                            theme === "dark" ? "border-border bg-card" : "border-border bg-muted/50"
                           )}>
                             <td className="px-4 py-3">Total</td>
                             <td className="px-4 py-3 text-right">${totalDebits.toFixed(2)}</td>
@@ -1758,7 +1752,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                             : totalDebits > 0 || totalCredits > 0
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            : theme === "dark" ? "bg-card text-muted-foreground" : "bg-neutral-100 text-muted-foreground"
+                            : "bg-muted text-muted-foreground"
                         )}
                       >
                         {isBalanced ? (
