@@ -1,6 +1,8 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import Head from "next/head";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DM_Sans } from "next/font/google";
 
 const dmSans = DM_Sans({
@@ -25,6 +27,8 @@ export default function App({ Component, pageProps }: AppProps) {
       <div className={`${dmSans.variable} min-h-screen font-sans`}>
         <Component {...pageProps} />
       </div>
+      <Analytics />
+      <SpeedInsights />
     </>
   );
 }

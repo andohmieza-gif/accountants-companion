@@ -913,12 +913,9 @@ export default function Home() {
                   className={cn("h-5 w-5", theme === "dark" ? "text-emerald-200" : "text-emerald-800")}
                 />
               </motion.div>
-              <div className="hidden min-w-0 sm:block">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Workspace</p>
-                <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  The Accountant&apos;s Companion
-                </p>
-              </div>
+              <span className="hidden truncate text-sm font-semibold tracking-tight text-foreground sm:block">
+                The Accountant&apos;s Companion
+              </span>
             </div>
 
             {/* Action buttons */}
