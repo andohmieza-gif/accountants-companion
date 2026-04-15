@@ -854,7 +854,22 @@ export default function Home() {
   };
 
   return (
-    <div className={cn("flex h-screen overflow-hidden", theme === "dark" ? "bg-background" : "bg-neutral-50")}>
+    <div
+      className={cn(
+        "relative flex h-screen overflow-hidden transition-colors",
+        theme === "dark"
+          ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
+          : "bg-neutral-50"
+      )}
+    >
+      {/* Dark: soft blue / cyan ambient (restored from earlier design) */}
+      {theme === "dark" && (
+        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+          <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-gradient-to-br from-blue-600/20 to-indigo-600/20 blur-3xl" />
+          <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-gradient-to-br from-emerald-600/18 to-cyan-600/18 blur-3xl" />
+          <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-blue-500/12 to-violet-600/10 blur-3xl" />
+        </div>
+      )}
 
       {/* Sidebar */}
       <Sidebar
@@ -874,7 +889,7 @@ export default function Home() {
       />
 
       {/* Main content */}
-      <main className="relative flex flex-1 flex-col overflow-hidden">
+      <main className="relative z-10 flex flex-1 flex-col overflow-hidden">
         {/* Modern Header */}
         <header
           className={cn(

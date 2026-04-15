@@ -27,7 +27,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 cursor-pointer bg-black/60 backdrop-blur-sm"
             onClick={() => onOpenChange(false)}
           />
           <motion.div
@@ -60,6 +60,7 @@ export function DialogContent({ className, children, onClose, ...props }: Dialog
     >
       {onClose && (
         <button
+          type="button"
           onClick={onClose}
           className="absolute right-4 top-4 rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >

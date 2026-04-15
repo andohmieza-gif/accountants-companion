@@ -108,7 +108,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
         type="button"
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed bottom-24 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors",
+          "fixed bottom-32 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors",
           theme === "dark"
             ? "bg-foreground text-background hover:bg-foreground/90"
             : "bg-foreground text-background hover:bg-foreground/90"
@@ -128,7 +128,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+              className="fixed inset-0 z-40 cursor-pointer bg-black/20 backdrop-blur-sm"
               onClick={() => setIsOpen(false)}
             />
             <motion.div
@@ -137,7 +137,7 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
               className={cn(
-                "fixed bottom-20 right-4 z-50 w-80 overflow-hidden rounded-2xl border shadow-2xl",
+                "fixed bottom-32 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border shadow-2xl",
                 theme === "dark" ? "border-border/60 bg-card" : "border-border/40 bg-white"
               )}
             >

@@ -24,22 +24,22 @@
   }
 
   .dark {
-    /* Dark gray theme - easier on the eyes */
-    --background: 0 0% 9%;
-    --foreground: 0 0% 93%;
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 93%;
-    --primary: 0 0% 90%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 93%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 0 0% 18%;
-    --accent-foreground: 0 0% 93%;
-    --border: 0 0% 20%;
-    --input: 0 0% 14%;
-    --ring: 0 0% 35%;
+    /* Cool slate-blue dark (matches earlier blue-tinted UI, not flat gray/black) */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 40% 10%;
+    --card-foreground: 210 40% 96%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222 47% 7%;
+    --secondary: 222 35% 13%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 32% 14%;
+    --muted-foreground: 215 20% 58%;
+    --accent: 222 38% 16%;
+    --accent-foreground: 210 40% 96%;
+    --border: 222 30% 18%;
+    --input: 222 35% 12%;
+    --ring: 217 55% 48%;
   }
 
   * {
@@ -49,6 +49,37 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Click affordance: native controls often default to `default` cursor in some browsers */
+  button:not(:disabled):not([disabled]),
+  [type="button"]:not(:disabled):not([disabled]),
+  [type="submit"]:not(:disabled):not([disabled]),
+  [type="reset"]:not(:disabled):not([disabled]),
+  [role="button"]:not([aria-disabled="true"]):not(:disabled) {
+    @apply cursor-pointer;
+  }
+
+  button:disabled,
+  button[disabled],
+  [aria-disabled="true"] {
+    @apply cursor-not-allowed;
+  }
+
+  a[href] {
+    @apply cursor-pointer;
+  }
+
+  select:enabled {
+    @apply cursor-pointer;
+  }
+
+  summary {
+    @apply cursor-pointer;
+  }
+
+  label[for] {
+    @apply cursor-pointer;
   }
 
   ::selection {
