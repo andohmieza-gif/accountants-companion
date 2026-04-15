@@ -1099,126 +1099,135 @@ export default function Home() {
                           damping: 25,
                         }}
                         className={cn(
-                          "flex items-start gap-3",
-                          msg.sender === "user" ? "flex-row-reverse" : "flex-row"
+                          "flex w-full min-w-0",
+                          msg.sender === "user" ? "justify-end" : "justify-start"
                         )}
                       >
-                        {/* Avatar — align to bubble only; timestamp sits in sibling column below bubble */}
-                        <div
-                          className={cn(
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
-                            msg.sender === "user"
-                              ? theme === "dark"
-                                ? "bg-foreground text-background"
-                                : "bg-emerald-950 text-emerald-50"
-                              : theme === "dark" ? "bg-card border border-border/50" : "bg-card border border-border/60 shadow-sm"
-                          )}
-                        >
-                          {msg.sender === "user" ? (
-                            <User className="h-4 w-4" />
-                          ) : (
-                            <Sparkles className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-
                         <div
                           className={cn(
                             "flex min-w-0 max-w-[85%] flex-col sm:max-w-[75%]",
                             msg.sender === "user" ? "items-end" : "items-stretch"
                           )}
                         >
+                          {/* Avatar + bubble only — items-center keeps avatar vertically centered on the bubble */}
                           <div
                             className={cn(
-                              "group/msg relative min-w-0",
-                              msg.sender === "user" ? "w-fit max-w-full" : "w-full"
+                              "flex gap-3",
+                              msg.sender === "user" ? "flex-row-reverse" : "flex-row",
+                              "items-center"
                             )}
                           >
-                            {/* Action buttons */}
-                            {messagePlainText(msg).trim().length > 0 &&
-                              !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
-                                <div className={cn(
-                                  "absolute -top-2 z-10 flex gap-1",
-                                  msg.sender === "user" ? "left-0" : "right-0"
-                                )}>
-                                  <button
-                                    type="button"
-                                    onClick={() => void copyMessage(msg)}
-                                    className={cn(
-                                      "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
-                                      "opacity-0 group-hover/msg:opacity-100"
-                                    )}
-                                    title="Copy"
-                                    aria-label="Copy message"
-                                  >
-                                    {copiedMessageId === msg.id ? (
-                                      <Check className="h-3 w-3 text-emerald-500" aria-hidden />
-                                    ) : (
-                                      <Copy className="h-3 w-3" aria-hidden />
-                                    )}
-                                  </button>
-                                  {msg.sender === "bot" && (
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleBookmark(msg.id)}
-                                      className={cn(
-                                        "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
-                                        "opacity-0 group-hover/msg:opacity-100",
-                                        msg.bookmarked && "text-amber-500 opacity-100"
-                                      )}
-                                      title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
-                                      aria-label={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
-                                    >
-                                      {msg.bookmarked ? (
-                                        <BookmarkCheck className="h-3 w-3" aria-hidden />
-                                      ) : (
-                                        <Bookmark className="h-3 w-3" aria-hidden />
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                              )}
                             <div
                               className={cn(
-                                "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
                                 msg.sender === "user"
                                   ? theme === "dark"
                                     ? "bg-foreground text-background"
                                     : "bg-emerald-950 text-emerald-50"
-                                  : cn(
-                                      "border border-border/50",
-                                      theme === "dark" ? "bg-card" : "bg-card shadow-sm"
-                                    )
+                                  : theme === "dark" ? "bg-card border border-border/50" : "bg-card border border-border/60 shadow-sm"
                               )}
                             >
-                              {msg.sender === "bot" && msg.isHtml ? (
-                                <div dangerouslySetInnerHTML={{ __html: msg.content }} />
-                              ) : msg.sender === "bot" && !msg.content && loading && msg.id === activeBotId ? (
-                                <div className="flex items-center gap-1 py-1">
-                                  {[0, 1, 2].map((i) => (
-                                    <motion.div
-                                      key={i}
-                                      className="h-2 w-2 rounded-full bg-muted-foreground/60"
-                                      animate={{ y: [0, -6, 0] }}
-                                      transition={{
-                                        duration: 0.6,
-                                        repeat: Infinity,
-                                        delay: i * 0.15,
-                                        ease: "easeInOut",
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-                              ) : msg.sender === "user" ? (
-                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              {msg.sender === "user" ? (
+                                <User className="h-4 w-4" />
                               ) : (
-                                <MarkdownRenderer content={msg.content} />
+                                <Sparkles className="h-4 w-4 text-muted-foreground" />
                               )}
                             </div>
+
+                            <div
+                              className={cn(
+                                "group/msg relative min-w-0",
+                                msg.sender === "user" ? "w-fit max-w-full" : "w-full min-w-0 flex-1"
+                              )}
+                            >
+                              {/* Action buttons */}
+                              {messagePlainText(msg).trim().length > 0 &&
+                                !(msg.sender === "bot" && loading && msg.id === activeBotId && !msg.content) && (
+                                  <div className={cn(
+                                    "absolute -top-2 z-10 flex gap-1",
+                                    msg.sender === "user" ? "left-0" : "right-0"
+                                  )}>
+                                    <button
+                                      type="button"
+                                      onClick={() => void copyMessage(msg)}
+                                      className={cn(
+                                        "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                        "opacity-0 group-hover/msg:opacity-100"
+                                      )}
+                                      title="Copy"
+                                      aria-label="Copy message"
+                                    >
+                                      {copiedMessageId === msg.id ? (
+                                        <Check className="h-3 w-3 text-emerald-500" aria-hidden />
+                                      ) : (
+                                        <Copy className="h-3 w-3" aria-hidden />
+                                      )}
+                                    </button>
+                                    {msg.sender === "bot" && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleBookmark(msg.id)}
+                                        className={cn(
+                                          "flex h-7 w-7 items-center justify-center rounded-full border border-border/50 bg-background text-muted-foreground shadow-sm transition-all hover:bg-muted hover:text-foreground",
+                                          "opacity-0 group-hover/msg:opacity-100",
+                                          msg.bookmarked && "text-amber-500 opacity-100"
+                                        )}
+                                        title={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
+                                        aria-label={msg.bookmarked ? "Remove bookmark" : "Bookmark"}
+                                      >
+                                        {msg.bookmarked ? (
+                                          <BookmarkCheck className="h-3 w-3" aria-hidden />
+                                        ) : (
+                                          <Bookmark className="h-3 w-3" aria-hidden />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              <div
+                                className={cn(
+                                  "rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                                  msg.sender === "user"
+                                    ? theme === "dark"
+                                      ? "bg-foreground text-background"
+                                      : "bg-emerald-950 text-emerald-50"
+                                    : cn(
+                                        "border border-border/50",
+                                        theme === "dark" ? "bg-card" : "bg-card shadow-sm"
+                                      )
+                                )}
+                              >
+                                {msg.sender === "bot" && msg.isHtml ? (
+                                  <div dangerouslySetInnerHTML={{ __html: msg.content }} />
+                                ) : msg.sender === "bot" && !msg.content && loading && msg.id === activeBotId ? (
+                                  <div className="flex items-center gap-1 py-1">
+                                    {[0, 1, 2].map((i) => (
+                                      <motion.div
+                                        key={i}
+                                        className="h-2 w-2 rounded-full bg-muted-foreground/60"
+                                        animate={{ y: [0, -6, 0] }}
+                                        transition={{
+                                          duration: 0.6,
+                                          repeat: Infinity,
+                                          delay: i * 0.15,
+                                          ease: "easeInOut",
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : msg.sender === "user" ? (
+                                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                ) : (
+                                  <MarkdownRenderer content={msg.content} />
+                                )}
+                              </div>
+                            </div>
                           </div>
+                          {/* Inset by avatar (h-8) + gap-3 so the time lines up with the bubble, not under the avatar */}
                           <p
                             className={cn(
                               "mt-1.5 text-[10px] text-muted-foreground/50",
-                              msg.sender === "user" ? "self-end text-right" : "text-left"
+                              msg.sender === "user" ? "mr-11 self-end text-right" : "ml-11 text-left"
                             )}
                           >
                             {msg.time}
