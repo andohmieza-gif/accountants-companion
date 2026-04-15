@@ -5,7 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type CalculatorMode = "basic" | "pv" | "fv" | "depreciation" | "percentage";
+type CalculatorMode =
+  | "basic"
+  | "pv"
+  | "fv"
+  | "depreciation"
+  | "percentage"
+  | "loan"
+  | "markup"
+  | "breakeven"
+  | "cagr"
+  | "ear";
 
 interface CalculatorWidgetProps {
   theme: "light" | "dark";
@@ -33,6 +43,29 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
   // Percentage calculator
   const [percentValue, setPercentValue] = useState("");
   const [percentOf, setPercentOf] = useState("");
+
+  // Loan payment (ordinary annuity, monthly compounding)
+  const [loanPrincipal, setLoanPrincipal] = useState("");
+  const [loanAnnualRate, setLoanAnnualRate] = useState("");
+  const [loanMonths, setLoanMonths] = useState("");
+
+  // Markup vs margin (from cost & selling price)
+  const [markupCost, setMarkupCost] = useState("");
+  const [markupPrice, setMarkupPrice] = useState("");
+
+  // Break-even (units)
+  const [beFixed, setBeFixed] = useState("");
+  const [beVar, setBeVar] = useState("");
+  const [bePrice, setBePrice] = useState("");
+
+  // CAGR (geometric mean return)
+  const [cagrBegin, setCagrBegin] = useState("");
+  const [cagrEnd, setCagrEnd] = useState("");
+  const [cagrYears, setCagrYears] = useState("");
+
+  // Effective annual rate from nominal APR and compounding frequency
+  const [earNominal, setEarNominal] = useState("");
+  const [earPeriods, setEarPeriods] = useState("");
 
   const calculateBasic = useCallback(() => {
     try {
@@ -91,14 +124,104 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
     setResult(`= ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
   }, [percentValue, percentOf]);
 
+  const calculateLoan = useCallback(() => {
+    const P = parseFloat(loanPrincipal);
+    const annualPct = parseFloat(loanAnnualRate);
+    const n = parseFloat(loanMonths);
+    if (isNaN(P) || isNaN(annualPct) || isNaN(n) || P <= 0 || n <= 0) {
+      setResult("Enter principal, rate, and term");
+      return;
+    }
+    const i = annualPct / 100 / 12;
+    let payment: number;
+    if (i === 0) {
+      payment = P / n;
+    } else {
+      const factor = Math.pow(1 + i, n);
+      payment = (P * i * factor) / (factor - 1);
+    }
+    const totalPaid = payment * n;
+    const interest = totalPaid - P;
+    setResult(
+      `Payment $${payment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo · Total interest $${interest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    );
+  }, [loanPrincipal, loanAnnualRate, loanMonths]);
+
+  const calculateMarkup = useCallback(() => {
+    const cost = parseFloat(markupCost);
+    const price = parseFloat(markupPrice);
+    if (isNaN(cost) || isNaN(price) || cost <= 0 || price <= 0) {
+      setResult("Enter positive cost and price");
+      return;
+    }
+    const profit = price - cost;
+    const markupOnCost = (profit / cost) * 100;
+    const marginOnPrice = (profit / price) * 100;
+    setResult(
+      `Markup ${markupOnCost.toFixed(2)}% on cost · Margin ${marginOnPrice.toFixed(2)}% on price · Profit $${profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    );
+  }, [markupCost, markupPrice]);
+
+  const calculateBreakeven = useCallback(() => {
+    const fixed = parseFloat(beFixed);
+    const varPer = parseFloat(beVar);
+    const price = parseFloat(bePrice);
+    if (isNaN(fixed) || isNaN(varPer) || isNaN(price)) {
+      setResult("Enter all values");
+      return;
+    }
+    const cm = price - varPer;
+    if (cm <= 0) {
+      setResult("Price must be above variable cost per unit");
+      return;
+    }
+    const units = fixed / cm;
+    const revenue = units * price;
+    setResult(
+      `B/E ${units.toLocaleString(undefined, { maximumFractionDigits: 2 })} units · Revenue $${revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    );
+  }, [beFixed, beVar, bePrice]);
+
+  const calculateCAGR = useCallback(() => {
+    const begin = parseFloat(cagrBegin);
+    const end = parseFloat(cagrEnd);
+    const years = parseFloat(cagrYears);
+    if (isNaN(begin) || isNaN(end) || isNaN(years) || begin <= 0 || end <= 0 || years <= 0) {
+      setResult("Enter positive beginning, ending, and years");
+      return;
+    }
+    const cagr = (Math.pow(end / begin, 1 / years) - 1) * 100;
+    setResult(`CAGR ${cagr.toFixed(4)}% (${years} yr)`);
+  }, [cagrBegin, cagrEnd, cagrYears]);
+
+  const calculateEAR = useCallback(() => {
+    const nominal = parseFloat(earNominal);
+    const m = parseFloat(earPeriods);
+    if (isNaN(nominal) || isNaN(m) || m < 1) {
+      setResult("Enter nominal APR and periods/year (e.g. 12)");
+      return;
+    }
+    const periods = Math.round(m);
+    const r = nominal / 100 / periods;
+    const ear = (Math.pow(1 + r, periods) - 1) * 100;
+    setResult(
+      `EAR ${ear.toFixed(4)}% (${periods}x/yr on ${nominal}% nominal)`
+    );
+  }, [earNominal, earPeriods]);
+
   const clearResult = () => setResult(null);
 
   const modes: { id: CalculatorMode; label: string }[] = [
     { id: "basic", label: "Basic" },
     { id: "pv", label: "Present Value" },
     { id: "fv", label: "Future Value" },
+    { id: "loan", label: "Loan payment" },
+    { id: "cagr", label: "CAGR" },
+    { id: "ear", label: "EAR" },
     { id: "depreciation", label: "Depreciation" },
     { id: "percentage", label: "Percentage" },
+    { id: "markup", label: "Markup & margin" },
+    { id: "breakeven", label: "Break-even" },
   ];
 
   return (
@@ -343,6 +466,195 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
                   </div>
                 )}
 
+                {mode === "loan" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Principal ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="250000"
+                        value={loanPrincipal}
+                        onChange={(e) => setLoanPrincipal(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">APR (%)</label>
+                        <Input
+                          type="number"
+                          placeholder="6.5"
+                          value={loanAnnualRate}
+                          onChange={(e) => setLoanAnnualRate(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Term (months)</label>
+                        <Input
+                          type="number"
+                          placeholder="360"
+                          value={loanMonths}
+                          onChange={(e) => setLoanMonths(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Level monthly payment; standard amortizing loan (end-of-period).
+                    </p>
+                    <Button onClick={calculateLoan} className="w-full" size="sm">
+                      Calculate payment
+                    </Button>
+                  </div>
+                )}
+
+                {mode === "markup" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Cost ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="40"
+                        value={markupCost}
+                        onChange={(e) => setMarkupCost(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Selling price ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="65"
+                        value={markupPrice}
+                        onChange={(e) => setMarkupPrice(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Markup % is on cost; margin % is profit as a share of selling price.
+                    </p>
+                    <Button onClick={calculateMarkup} className="w-full" size="sm">
+                      Calculate
+                    </Button>
+                  </div>
+                )}
+
+                {mode === "breakeven" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Fixed costs ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="120000"
+                        value={beFixed}
+                        onChange={(e) => setBeFixed(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Variable $ / unit</label>
+                        <Input
+                          type="number"
+                          placeholder="18"
+                          value={beVar}
+                          onChange={(e) => setBeVar(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Price $ / unit</label>
+                        <Input
+                          type="number"
+                          placeholder="45"
+                          value={bePrice}
+                          onChange={(e) => setBePrice(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Single-product break-even: fixed ÷ (price − variable cost per unit).
+                    </p>
+                    <Button onClick={calculateBreakeven} className="w-full" size="sm">
+                      Calculate break-even
+                    </Button>
+                  </div>
+                )}
+
+                {mode === "cagr" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Beginning value ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="10000"
+                        value={cagrBegin}
+                        onChange={(e) => setCagrBegin(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Ending value ($)</label>
+                      <Input
+                        type="number"
+                        placeholder="18500"
+                        value={cagrEnd}
+                        onChange={(e) => setCagrEnd(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Years</label>
+                      <Input
+                        type="number"
+                        placeholder="5"
+                        value={cagrYears}
+                        onChange={(e) => setCagrYears(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Compound annual growth: constant rate that maps beginning to ending over the horizon.
+                    </p>
+                    <Button onClick={calculateCAGR} className="w-full" size="sm">
+                      Calculate CAGR
+                    </Button>
+                  </div>
+                )}
+
+                {mode === "ear" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Nominal APR (%)</label>
+                      <Input
+                        type="number"
+                        placeholder="6"
+                        value={earNominal}
+                        onChange={(e) => setEarNominal(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Compounding periods / year</label>
+                      <Input
+                        type="number"
+                        placeholder="12 (monthly)"
+                        value={earPeriods}
+                        onChange={(e) => setEarPeriods(e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      Stated rate with m compounding periods vs once-per-year equivalent (EAR).
+                    </p>
+                    <Button onClick={calculateEAR} className="w-full" size="sm">
+                      Calculate EAR
+                    </Button>
+                  </div>
+                )}
+
                 {/* Result */}
                 <AnimatePresence>
                   {result && (
@@ -352,7 +664,9 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
                       exit={{ opacity: 0, y: -10 }}
                       className="mt-4 rounded-lg bg-muted p-3 text-center"
                     >
-                      <p className="font-mono text-lg font-semibold text-foreground">{result}</p>
+                      <p className="break-words font-mono text-sm font-semibold leading-snug text-foreground md:text-base">
+                        {result}
+                      </p>
                     </motion.div>
                   )}
                 </AnimatePresence>
