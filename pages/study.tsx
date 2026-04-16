@@ -2,6 +2,7 @@ import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import { StudyMode } from "@/components/study-mode";
 import { StudyChromeHeader } from "@/components/study-chrome-header";
+import { defaultDescription, getSiteOrigin, siteTitle } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 const THEME_KEY = "accountants-companion-theme";
@@ -37,10 +38,21 @@ export default function StudyPage() {
     }
   }, [theme]);
 
+  const studyTitle = `Study Mode · ${siteTitle}`;
+  const studyUrl = `${getSiteOrigin()}/study`;
+  const ogImageUrl = `${getSiteOrigin()}/og.png`;
+
   return (
     <>
       <Head>
-        <title>Study Mode · The Accountant&apos;s Companion</title>
+        <title>{studyTitle}</title>
+        <meta property="og:title" content={studyTitle} />
+        <meta property="og:url" content={studyUrl} />
+        <meta name="twitter:title" content={studyTitle} />
+        <meta property="og:description" content={defaultDescription} />
+        <meta name="twitter:description" content={defaultDescription} />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta name="twitter:image" content={ogImageUrl} />
       </Head>
       <div
         className={cn(
