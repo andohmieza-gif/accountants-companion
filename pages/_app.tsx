@@ -39,7 +39,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Acct Companion" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0d9488" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:type" content="website" />
