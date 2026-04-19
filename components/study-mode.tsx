@@ -3549,9 +3549,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                       </button>
                     </div>
 
-                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                      <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground">
-                        Practice transaction
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">
+                      <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <span className="text-sm font-medium text-foreground">Practice transaction</span>
                         <select
                           value={journalPromptId ?? ""}
                           onChange={(e) => {
@@ -3561,7 +3561,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             setJournalPromptId(v === "" ? null : v);
                           }}
                           className={cn(
-                            "rounded-lg border px-3 py-2 text-sm font-normal text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
+                            "h-10 w-full rounded-lg border px-3 text-sm text-foreground shadow-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
                             theme === "dark" ? "border-border bg-card" : "border-input bg-background"
                           )}
                           aria-label="Choose a practice transaction or blank worksheet"
@@ -3577,8 +3577,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        className="rounded-lg"
+                        className="h-10 shrink-0 rounded-lg px-4 text-sm font-medium shadow-sm"
                         onClick={() => {
                           const p =
                             JOURNAL_PRACTICE_PROMPTS[
@@ -3603,19 +3602,18 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="font-semibold text-foreground">{activeJournalPrompt.title}</p>
                         <p className="mt-1 text-muted-foreground">{activeJournalPrompt.scenario}</p>
                         {activeJournalPrompt.example.length > 0 ? (
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-start sm:gap-4">
                             <Button
                               type="button"
                               variant="outline"
-                              size="sm"
-                              className="rounded-lg"
+                              className="h-9 w-full shrink-0 rounded-lg px-3 text-sm font-medium shadow-sm sm:w-auto"
                               onClick={() => setJournalExampleRevealed((r) => !r)}
                             >
                               {journalExampleRevealed ? "Hide example entry" : "Show example entry"}
                             </Button>
-                            <span className="text-xs text-muted-foreground">
+                            <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground sm:pt-1.5">
                               Reveal only after you try—one valid pattern, not the only answer.
-                            </span>
+                            </p>
                           </div>
                         ) : null}
                         {journalExampleRevealed && activeJournalPrompt.example.length > 0 ? (
