@@ -12,7 +12,7 @@ type FeedbackBody = {
   modelOutline?: string[];
   /** coaching = warm tutor; exam = tighter bar, exam-style tone */
   style?: "coaching" | "exam";
-  /** 1–5 self-rating before requesting feedback */
+  /** 1-5 self-rating before requesting feedback */
   selfRubricScore?: number;
 };
 
@@ -22,7 +22,7 @@ Rules:
 - Be constructive and specific. Note strengths, gaps, and blind spots relative to the case facts.
 - You may use the "model outline" bullets as a private rubric, but do not quote them verbatim as a checklist. Synthesize.
 - Keep feedback concise: at most 4 short paragraphs or bullet groups, plain language, no numeric score on their answer.
-- If the answer is very thin, encourage expanding on risks, procedures, documentation, or professional judgment — without writing the full answer for them.
+- If the answer is very thin, encourage expanding on risks, procedures, documentation, or professional judgment, without writing the full answer for them.
 - U.S. GAAP / audit mindset unless the prompt clearly implies otherwise.`;
 
 const EXAM_SYSTEM = `You are a rigorous accounting examiner-style coach reviewing a constructed response.
@@ -78,7 +78,7 @@ ${exercisePrompt}
 
 Learner self-assessment vs. outline coverage: ${self}
 
-Model outline (for your reference only — do not present as the only correct answer):
+Model outline (for your reference only; do not present as the only correct answer):
 • ${outline}
 
 Learner's response:
@@ -99,6 +99,6 @@ Provide feedback as described in your instructions.`,
     return res.status(200).json({ feedback });
   } catch (error) {
     console.error("Case study feedback API error:", error);
-    return res.status(500).json({ error: "Failed to generate feedback" });
+    return res.status(500).json({ error: "Could not load feedback. Try again." });
   }
 }

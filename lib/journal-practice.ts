@@ -62,7 +62,7 @@ export const JOURNAL_PRACTICE_PROMPTS: JournalPracticePrompt[] = [
     tags: ["depreciation", "fixed", "ppe", "journal", "expense"],
     example: [
       { account: "Depreciation Expense", debit: "1850", credit: "" },
-      { account: "Accumulated Depreciation — Equipment", debit: "", credit: "1850" },
+      { account: "Accumulated Depreciation - Equipment", debit: "", credit: "1850" },
     ],
   },
   {

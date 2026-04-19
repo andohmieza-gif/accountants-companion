@@ -73,6 +73,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ flashcards: [...batch1, ...batch2] });
   } catch (error) {
     console.error("Flashcards API error:", error);
-    return res.status(500).json({ error: "Failed to generate flashcards" });
+    return res.status(500).json({ error: "Could not load flashcards. Try again." });
   }
 }

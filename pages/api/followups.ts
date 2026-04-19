@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       messages: [
         {
           role: "system",
-          content: `You generate follow-up questions for an accounting assistant. Given a user's question and the assistant's answer, suggest exactly 3 specific, relevant follow-up questions the user might want to ask next.
+          content: `You suggest follow-up questions for an accounting study companion. Given a user's question and the companion's answer, propose exactly 3 specific, relevant follow-up questions the user might want to ask next.
 
 Rules:
 - Keep each question under 45 characters
@@ -39,7 +39,7 @@ Rules:
 
 Assistant answered about: "${answer.slice(0, 300)}"
 
-Generate 3 follow-up questions:`,
+Suggest 3 follow-up questions:`,
         },
       ],
       temperature: 0.7,
@@ -56,6 +56,6 @@ Generate 3 follow-up questions:`,
     return res.status(200).json({ followups });
   } catch (error) {
     console.error("Followups API error:", error);
-    return res.status(500).json({ error: "Failed to generate follow-ups" });
+    return res.status(500).json({ error: "Could not load follow-up ideas. Try again." });
   }
 }

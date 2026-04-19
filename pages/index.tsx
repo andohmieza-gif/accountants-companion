@@ -770,10 +770,10 @@ export default function Home() {
     incrementMessageCount();
 
     const question = trimmed.toLowerCase();
-    const builderMatch = /who (built|created|made) (this|you|the chatbot)/.test(question);
+    const builderMatch = /who (built|created|made) (this|you|the (app|chatbot|site))/.test(question);
 
     if (builderMatch) {
-      const html = `This chatbot was built by <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer" class="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Mieza Andoh</a>, an accounting expert with extensive knowledge and experience in accounting, audit, and financial reporting.`;
+      const html = `Mieza Andoh built this app. She is an accounting expert with deep experience in accounting, audit, and financial reporting. <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer" class="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Connect on LinkedIn</a>.`;
       updateConversation(convId, [
         ...newMessages,
         { id: newId(), sender: "bot", content: html, time: formatTime(), isHtml: true },
@@ -868,7 +868,7 @@ export default function Home() {
         )
       );
 
-      // Fetch AI-generated follow-ups in background
+      // Fetch follow-up suggestions in the background
       fetchFollowups(trimmed, finalText).then((followups) => {
         setCurrentFollowups(followups);
       });
@@ -887,7 +887,7 @@ export default function Home() {
               : c
           )
         );
-        setToast("Generation stopped");
+        setToast("Reply stopped");
       } else {
         updateConversation(
           convId,
@@ -1316,7 +1316,7 @@ export default function Home() {
                             onClick={regenerateLastResponse}
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
-                            Regenerate
+                            Try another answer
                           </Button>
                         </div>
 

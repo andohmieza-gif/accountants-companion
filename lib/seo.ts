@@ -1,7 +1,7 @@
 export const siteTitle = "The Accountant's Companion";
 
 export const defaultDescription =
-  "AI assistant for accounting students and professionals: GAAP, IFRS, audit, tax, CPA prep, and journal entries.";
+  "Study companion for accounting students and professionals. GAAP, IFRS, audit, tax, CPA prep, and journal entries in plain language.";
 
 /** Base URL for canonical links and Open Graph (no trailing slash). */
 export function getSiteOrigin(): string {

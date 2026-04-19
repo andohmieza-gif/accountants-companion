@@ -5,7 +5,7 @@ const openai = new OpenAI();
 
 type CaseStudyRequestBody = {
   topic?: string;
-  /** Optional: generate a follow-on chapter for the same entity and fact pattern. */
+  /** Optional: continue with a follow-on chapter for the same entity and fact pattern. */
   continuationFrom?: {
     title?: string;
     scenario?: string;
@@ -35,23 +35,23 @@ Return ONLY valid JSON with this exact shape:
       "explanation": "why the best answer follows from GAAP / practice, tied to the scenario"
     }
   ],
-  "practiceNotes": "2–4 sentences: what a professional would watch for next, document, or escalate in the real world.",
+  "practiceNotes": "2-4 sentences: what a professional would watch for next, document, or escalate in the real world.",
   "journalPractice": "one line: a concrete journal-entry practice prompt tied to this case (e.g. 'Record the year-end accrual for…').",
   "discussionQuestions": ["open-ended prompt 1", "open-ended prompt 2", "open-ended prompt 3"],
   "writtenExercises": [
     {
       "role": "short hat / role (e.g. Audit senior, Corporate controller)",
-      "prompt": "Realistic task the learner types an answer to: e.g. list key procedures, draft memo bullets, explain judgment, outline journal entries conceptually — grounded in THIS case's facts.",
-      "outline": ["3–6 bullet points a strong answer might cover — for self-check and feedback; not copy-pasted from the prompt"]
+      "prompt": "Realistic task the learner types an answer to: e.g. list key procedures, draft memo bullets, explain judgment, outline journal entries conceptually, grounded in THIS case's facts.",
+      "outline": ["3-6 bullet points a strong answer might cover, for self-check and feedback; not copy-pasted from the prompt"]
     }
   ]
 }
 
-Generate exactly 5 scored multiple-choice questions. correctIndex must be 0–3. Options must be distinct and plausible.
+Generate exactly 5 scored multiple-choice questions. correctIndex must be 0-3. Options must be distinct and plausible.
 
 Provide exactly 3 "discussionQuestions": short, open-ended prompts for reflection or group study.
 
-Provide exactly 2 "writtenExercises". Each must feel like real work product practice (not trivia): different angles (e.g. risk + procedures, or accounting treatment + disclosure). "outline" must have 3–6 distinct, substantive bullets tied to the scenario.
+Provide exactly 2 "writtenExercises". Each must feel like real work product practice (not trivia): different angles (e.g. risk + procedures, or accounting treatment + disclosure). "outline" must have 3-6 distinct, substantive bullets tied to the scenario.
 
 Always include "journalPractice": one short, concrete journal-entry exercise prompt tied to this scenario.`;
 
@@ -86,7 +86,7 @@ Prior context: ${typeof cont.context === "string" ? cont.context : "(none)"}
 Prior scenario (for continuity):
 ${(cont.scenario ?? "").slice(0, 12000)}
 
-Return fresh MCQs and exercises that depend on BOTH prior and new facts.`
+Return fresh multiple-choice questions and exercises that depend on BOTH prior and new facts.`
       : `Topic / theme for this case study: ${topic}\n\nVary the fact pattern so it does not resemble generic textbook examples.`;
 
   try {
@@ -190,6 +190,6 @@ Return fresh MCQs and exercises that depend on BOTH prior and new facts.`
     });
   } catch (error) {
     console.error("Case study API error:", error);
-    return res.status(500).json({ error: "Failed to generate case study" });
+    return res.status(500).json({ error: "Could not load this case. Try again." });
   }
 }

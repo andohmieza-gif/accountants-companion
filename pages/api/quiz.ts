@@ -47,6 +47,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ questions: [...batch1, ...batch2] });
   } catch (error) {
     console.error("Quiz API error:", error);
-    return res.status(500).json({ error: "Failed to generate quiz" });
+    return res.status(500).json({ error: "Could not load this quiz. Try again." });
   }
 }

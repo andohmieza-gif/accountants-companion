@@ -183,7 +183,7 @@ const DIFFICULTY_CONFIG = {
   hard: { time: 15, label: "Hard", color: "text-red-500" },
 };
 
-// Confetti — skips when user prefers reduced motion; `subtle` for small wins (e.g. journal balanced)
+// Confetti: skips when user prefers reduced motion; `subtle` for small wins (e.g. journal balanced)
 function Confetti({
   active,
   reducedMotion,
@@ -360,24 +360,24 @@ const QUIZ_TOPICS = [
   { name: "Property, Plant & Equipment", icon: "🏭" },
 ];
 
-/** Applied scenarios — same themes as quiz, written as narrative case studies. */
+/** Applied scenarios: same themes as quiz, written as narrative case studies. */
 const CASE_STUDY_TOPICS = QUIZ_TOPICS;
 
 const FLASHCARD_TOPICS = [
-  { name: "Basic Accounting Terms", icon: "📚", count: 10 },
-  { name: "Financial Ratios", icon: "📈", count: 10 },
-  { name: "Journal Entry Rules", icon: "✍️", count: 10 },
-  { name: "GAAP Principles", icon: "📋", count: 10 },
-  { name: "Audit Assertions", icon: "✅", count: 10 },
-  { name: "Financial Statement Line Items", icon: "📊", count: 10 },
-  { name: "Revenue Recognition (ASC 606)", icon: "💰", count: 10 },
-  { name: "Leases (ASC 842)", icon: "🏢", count: 10 },
-  { name: "Inventory & COGS", icon: "📦", count: 10 },
-  { name: "Fixed Assets & Depreciation", icon: "📉", count: 10 },
-  { name: "Income Taxes (ASC 740)", icon: "🧾", count: 10 },
-  { name: "Debt, Bonds & Interest", icon: "📜", count: 10 },
-  { name: "Cash Flow & Liquidity", icon: "💵", count: 10 },
-  { name: "Ethics & Professional Conduct", icon: "⚖️", count: 10 },
+  { name: "Basic Accounting Terms", icon: "📚" },
+  { name: "Financial Ratios", icon: "📈" },
+  { name: "Journal Entry Rules", icon: "✍️" },
+  { name: "GAAP Principles", icon: "📋" },
+  { name: "Audit Assertions", icon: "✅" },
+  { name: "Financial Statement Line Items", icon: "📊" },
+  { name: "Revenue Recognition (ASC 606)", icon: "💰" },
+  { name: "Leases (ASC 842)", icon: "🏢" },
+  { name: "Inventory & COGS", icon: "📦" },
+  { name: "Fixed Assets & Depreciation", icon: "📉" },
+  { name: "Income Taxes (ASC 740)", icon: "🧾" },
+  { name: "Debt, Bonds & Interest", icon: "📜" },
+  { name: "Cash Flow & Liquidity", icon: "💵" },
+  { name: "Ethics & Professional Conduct", icon: "⚖️" },
 ];
 
 /** Topics for Match mode (dedicated prompts so definitions are not trivial to pair). */
@@ -429,8 +429,8 @@ const QUIZ_LOADING_MESSAGES = [
   { text: "Convincing the trial balance to behave...", emoji: "🙏" },
   { text: "Rolling forward last year's jokes… I mean, workpapers…", emoji: "📎" },
   { text: "Materiality: low for this loader, high for your ego after a perfect score", emoji: "📏" },
-  { text: "Asking the partner for sign-off (they're busy; we're generating quizzes)", emoji: "✍️" },
-  { text: "Capitalizing fun, expensing stress — GAAP says no, we say maybe", emoji: "😅" },
+  { text: "Asking the partner for sign-off (they're busy; we're still writing your quiz)", emoji: "✍️" },
+  { text: "Capitalizing fun, expensing stress: GAAP says no, we say maybe", emoji: "😅" },
   { text: "Footnotes: there will be jokes. Substance over form.", emoji: "📝" },
   { text: "Impairment testing your attention span…", emoji: "🔋" },
   { text: "Reconciling you vs. the answer key (friendly fire)", emoji: "🤝" },
@@ -465,7 +465,7 @@ const FLASHCARD_LOADING_MESSAGES = [
   { text: "Front: term. Back: the thing you swear you knew yesterday", emoji: "🪞" },
   { text: "Turning paragraphs into punchy one-liners…", emoji: "🥊" },
   { text: "Memorize now, impress people at parties later (results may vary)", emoji: "🎉" },
-  { text: "Spaced repetition called — it wants its royalties", emoji: "📞" },
+  { text: "Spaced repetition called: it wants its royalties", emoji: "📞" },
   { text: "If flashcards were currency, you'd be rich soon", emoji: "💰" },
   { text: "Loading… like closing the books, but faster", emoji: "⏱️" },
   { text: "Your future self is already grateful (slightly smug)", emoji: "🦚" },
@@ -489,7 +489,7 @@ const MATCH_LOADING_MESSAGES = [
   { text: "Pairs: not just for socks and audit samples", emoji: "🧦" },
   { text: "Tile entropy approaching maximum fun…", emoji: "🎲" },
   { text: "Reconciling left brain with right brain…", emoji: "🧠" },
-  { text: "Almost ready — stretch those click fingers", emoji: "🖱️" },
+  { text: "Almost ready: stretch those click fingers", emoji: "🖱️" },
   { text: "If this were Excel, we'd merge cells (we won't)", emoji: "📗" },
   { text: "Building bridges between words and meanings…", emoji: "🌉" },
   { text: "Control match: design effective, operation hilarious", emoji: "🎮" },
@@ -508,7 +508,7 @@ const CASE_STUDY_LOADING_MESSAGES = [
   { text: "This one could happen on the job...", emoji: "💼" },
   { text: "Inventing a company that definitely isn't your employer…", emoji: "🏢" },
   { text: "Adding drama (the professional kind)", emoji: "🎭" },
-  { text: "Client says 'it's immaterial' — we say 'nice try'", emoji: "🍿" },
+  { text: "Client says 'it's immaterial'; we say 'nice try'", emoji: "🍿" },
   { text: "Watering the facts until they grow into a narrative", emoji: "🌱" },
   { text: "Related parties: fictional, but the stress is real", emoji: "👯" },
   { text: "Writing the memo you'd actually want to read", emoji: "✍️" },
@@ -521,7 +521,7 @@ const CASE_STUDY_LOADING_MESSAGES = [
   { text: "Risk assessment: you might actually learn something", emoji: "⚠️" },
   { text: "Workpaper W-1: Witty banter (required field)", emoji: "🗂️" },
   { text: "Confirming cash… just kidding, we're still writing the case", emoji: "💵" },
-  { text: "The engagement letter said 'reasonable assurance' — we added jokes", emoji: "📜" },
+  { text: "The engagement letter said 'reasonable assurance.' We added jokes", emoji: "📜" },
   { text: "Brain-friendly font, soul-crushing standards", emoji: "🔤" },
 ];
 
@@ -1602,7 +1602,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     if (lines.length) lines.push("");
     lines.push("Account\tDebit\tCredit");
     journalEntries.forEach((e) => {
-      lines.push(`${e.account || "—"}\t${e.debit || ""}\t${e.credit || ""}`);
+      lines.push(`${e.account || "-"}\t${e.debit || ""}\t${e.credit || ""}`);
     });
     lines.push("");
     lines.push(`Totals\tDr ${td.toFixed(2)}\tCr ${tc.toFixed(2)}`);
@@ -1656,9 +1656,10 @@ export function StudyMode({ theme }: StudyModeProps) {
       : 0;
 
   const matchPairCount = matchTiles.length / 2;
-  const topicsTouched = Object.keys(stats.topicStats).filter(
-    (k) => (stats.topicStats[k]?.total ?? 0) > 0
-  ).length;
+  const gradedAnswerTotal = stats.totalQuestions + stats.caseStudyQuestionCount;
+  const gradedAnswerCorrect = stats.totalCorrect + stats.caseStudyCorrect;
+  const gradedAccuracyPct =
+    gradedAnswerTotal > 0 ? Math.round((gradedAnswerCorrect / gradedAnswerTotal) * 100) : null;
   const studyStreak = computeStudyStreak(studyDays);
 
   const handleMatchTileClick = (tile: MatchTile) => {
@@ -1776,14 +1777,15 @@ export function StudyMode({ theme }: StudyModeProps) {
                   </h2>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">Master accounting concepts</span>
-                    {topicsTouched > 0 ? (
+                    {gradedAccuracyPct !== null ? (
                       <span
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums",
                           theme === "dark" ? "bg-white/10 text-emerald-100" : "bg-emerald-100/90 text-emerald-900"
                         )}
+                        title="Your accuracy on saved quizzes and case study multiple choice. Practice mode does not count."
                       >
-                        {topicsTouched} topic{topicsTouched === 1 ? "" : "s"}
+                        {gradedAccuracyPct}% correct
                       </span>
                     ) : null}
                     {studyStreak > 0 ? (
@@ -1887,7 +1889,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="mb-2 text-xs font-semibold text-foreground">Quiz</p>
                         <ul className="space-y-1.5 text-xs text-muted-foreground">
                           <li>
-                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>–
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>-
                             <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">4</kbd> pick
                             an answer
                           </li>
@@ -1915,10 +1917,10 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </ul>
                       </div>
                       <div className="rounded-xl border border-border/50 bg-background/60 p-3 dark:bg-black/20">
-                        <p className="mb-2 text-xs font-semibold text-foreground">Case study (MCQ)</p>
+                        <p className="mb-2 text-xs font-semibold text-foreground">Case study (multiple choice)</p>
                         <ul className="space-y-1.5 text-xs text-muted-foreground">
                           <li>
-                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>–
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>-
                             <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">4</kbd> select
                             choice
                           </li>
@@ -2081,7 +2083,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                         <div
                           role="group"
-                          aria-label="Case AI feedback style"
+                          aria-label="Case study written feedback style"
                           className={cn(
                             "grid w-full shrink-0 grid-cols-2 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
                             "bg-muted"
@@ -2424,7 +2426,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!quizTopic ? (
                       <div>
                         <p className="mb-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-                          <span className="font-medium text-foreground">Pick a topic</span> — ten questions per run.
+                          <span className="font-medium text-foreground">Pick a topic</span> (ten questions per run).
                           Open settings for timed mode or practice (no stat save).
                         </p>
                         {focusQuickQuizTopic ? (
@@ -2861,7 +2863,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!caseStudyTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Real-world scenarios: MCQs, typed tasks with optional AI feedback, and discussion prompts.
+                          Real-world scenarios: multiple-choice questions, short written tasks with optional feedback on your
+                          work, and discussion prompts.
                         </p>
                         {pendingCaseDraft ? (
                           <div
@@ -3003,8 +3006,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                           <p className="text-sm font-medium text-foreground">How written practice works</p>
                           <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                             <li>
-                              <span className="font-medium text-foreground">Write</span> your answer in each box
-                              below—full sentences, like email or memo style.
+                              <span className="font-medium text-foreground">Write</span> your answer in each box below.
+                              Use full sentences, like email or memo style.
                             </li>
                             <li>
                               <span className="font-medium text-foreground">Self-check</span> by opening{" "}
@@ -3012,9 +3015,10 @@ export function StudyMode({ theme }: StudyModeProps) {
                               strong response might hit; they are not the only acceptable wording.
                             </li>
                             <li>
-                              <span className="font-medium text-foreground">Optional AI feedback</span> comments on what
-                              you wrote. It does not change your MCQ score or saved stats. If you use it, the 1–5 buttons
-                              tell the coach how close you think you got to the outline.
+                              <span className="font-medium text-foreground">Optional written feedback</span> comments on
+                              what you wrote. It does not change your multiple-choice score or saved stats. If you use it,
+                              the 1-5
+                              buttons tell the reader how close you think you got to the outline.
                             </li>
                           </ol>
                         </div>
@@ -3082,8 +3086,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                                     Self-check with sample outline
                                   </p>
                                   <p className="mt-1 text-xs text-muted-foreground">
-                                    Compare your draft to these idea bullets on your own before (or instead of) AI
-                                    feedback.
+                                    Compare your draft to these idea bullets on your own before (or instead of) asking
+                                    for feedback on your writing.
                                   </p>
                                   <Button
                                     type="button"
@@ -3115,9 +3119,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   </p>
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     After you have read the outline (or tried without it), how well does your draft cover
-                                    those themes? This is only sent to the AI if you click{" "}
-                                    <span className="font-medium text-foreground">Get AI feedback</span>—it helps the
-                                    coach calibrate (e.g. if you felt confident but missed a big point).
+                                    those themes? We only share this rating if you tap{" "}
+                                    <span className="font-medium text-foreground">Get feedback</span>. It helps the
+                                    reader calibrate (for example if you felt confident but missed a big point).
                                   </p>
                                   <div
                                     className="mt-2 flex flex-wrap items-center gap-1"
@@ -3144,9 +3148,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                                         aria-pressed={caseWrittenSelfScore[i] === n}
                                         title={
                                           n === 1
-                                            ? "1 — missed most themes"
+                                            ? "1: missed most themes"
                                             : n === 5
-                                            ? "5 — hit the themes well"
+                                            ? "5: hit the themes well"
                                             : `${n} of 5`
                                         }
                                       >
@@ -3174,7 +3178,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                         Feedback…
                                       </>
                                     ) : (
-                                      "Get AI feedback"
+                                      "Get feedback"
                                     )}
                                   </Button>
                                 </div>
@@ -3226,7 +3230,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </p>
                             {caseStudyPayload.writtenExercises && caseStudyPayload.writtenExercises.length > 0 ? (
                               <p className="mt-1 text-xs text-muted-foreground/80">
-                                Written exercises are practice only — not included in this score.
+                                Written exercises are practice only and are not included in this score.
                               </p>
                             ) : null}
                           </div>
@@ -3249,7 +3253,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               >
                                 <p className="mb-1 font-semibold text-foreground">Discuss</p>
                                 <p className="mb-3 text-xs text-muted-foreground">
-                                  Open-ended — work through solo, with a study group, or in class.
+                                  Open-ended. Work through solo, with a study group, or in class.
                                 </p>
                                 <ol className="list-decimal space-y-2 pl-4 text-muted-foreground">
                                   {caseStudyPayload.discussionQuestions.map((q, i) => (
@@ -3260,7 +3264,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             )}
                           {caseMcqMistakes.length > 0 ? (
                             <div className="mt-4 w-full text-left">
-                              <p className="mb-2 text-sm font-semibold">MCQ review</p>
+                              <p className="mb-2 text-sm font-semibold">Multiple-choice review</p>
                               <div className="max-h-52 space-y-3 overflow-y-auto rounded-xl border border-border/60 p-3 text-sm">
                                 {caseMcqMistakes.map((m, idx) => {
                                   const wrongLabel =
@@ -3532,7 +3536,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!flashcardTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Select a topic to generate study flashcards
+                          Pick a topic to open a new flashcard deck
                         </p>
                         {focusQuickFlashTopic ? (
                           <div
@@ -3586,7 +3590,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
-                                <p className="text-xs text-muted-foreground">{topic.count} cards</p>
+                                <p className="text-xs text-muted-foreground">New cards each time you open a topic. Deck
+                                  length varies.</p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
@@ -3781,7 +3786,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!matchTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Pair each term with its definition. Cards are generated for match play: definitions avoid repeating the term so pairing stays a real recall check.
+                          Pair each term with its definition. Definitions are phrased so they do not just repeat the term,
+                          so matching stays a real recall check.
                         </p>
                         {focusQuickMatchTopic ? (
                           <div
@@ -4117,7 +4123,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               {journalExampleRevealed ? "Hide example entry" : "Show example entry"}
                             </Button>
                             <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground sm:pt-1.5">
-                              Reveal only after you try—one valid pattern, not the only answer.
+                              Reveal only after you try. One valid pattern, not the only answer.
                             </p>
                           </div>
                         ) : null}
