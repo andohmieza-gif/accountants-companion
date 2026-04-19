@@ -45,6 +45,7 @@ const STUDY_SETTINGS_KEY = "accountants-companion-study-settings";
 const CASE_DRAFT_KEY = "accountants-companion-case-draft";
 const STUDY_ACTIVITY_KEY = "accountants-companion-study-activity";
 const MATCH_BEST_TIME_KEY = "accountants-companion-match-best-times";
+const STUDY_NAV_KEY = "accountants-companion-study-nav";
 
 type MatchPairCount = 4 | 6 | 8;
 
@@ -455,7 +456,29 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
 };
 
 export function StudyMode({ theme }: StudyModeProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("quiz");
+  const [studySection, setStudySection] = useState<"practice" | "case" | "journal">("practice");
+  const [drillTab, setDrillTab] = useState<"quiz" | "flashcards" | "match">("quiz");
+
+  const activeTab: Tab =
+    studySection === "case"
+      ? "casestudy"
+      : studySection === "journal"
+      ? "journal"
+      : drillTab;
+
+  const goToTab = useCallback((tab: Tab) => {
+    if (tab === "casestudy") {
+      setStudySection("case");
+      return;
+    }
+    if (tab === "journal") {
+      setStudySection("journal");
+      return;
+    }
+    setStudySection("practice");
+    setDrillTab(tab);
+  }, []);
+
   const [quizTopic, setQuizTopic] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -517,10 +540,13 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [matchCombo, setMatchCombo] = useState(0);
   const [matchBestSession, setMatchBestSession] = useState<number | null>(null);
   const [pendingCaseDraft, setPendingCaseDraft] = useState<CaseDraftV1 | null>(null);
+  /** Last topic the learner explicitly started (quiz, case, cards, or match). */
+  const [sessionFocusTopic, setSessionFocusTopic] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const matchTickRef = useRef<NodeJS.Timeout | null>(null);
   const caseDraftSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const skipFirstNavPersist = useRef(true);
 
   // Load settings and stats from localStorage
   useEffect(() => {
@@ -544,6 +570,21 @@ export function StudyMode({ theme }: StudyModeProps) {
       }
 
       setStudyDays(loadStudyDays(STUDY_ACTIVITY_KEY));
+
+      try {
+        const navRaw = localStorage.getItem(STUDY_NAV_KEY);
+        if (navRaw) {
+          const nav = JSON.parse(navRaw) as { section?: string; drill?: string };
+          if (nav.section === "case" || nav.section === "journal" || nav.section === "practice") {
+            setStudySection(nav.section);
+          }
+          if (nav.drill === "quiz" || nav.drill === "flashcards" || nav.drill === "match") {
+            setDrillTab(nav.drill);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
 
       try {
         const draftRaw = localStorage.getItem(CASE_DRAFT_KEY);
@@ -575,6 +616,21 @@ export function StudyMode({ theme }: StudyModeProps) {
       // Ignore errors
     }
   }, []);
+
+  useEffect(() => {
+    if (skipFirstNavPersist.current) {
+      skipFirstNavPersist.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(
+        STUDY_NAV_KEY,
+        JSON.stringify({ section: studySection, drill: drillTab })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [studySection, drillTab]);
 
   // Save settings to localStorage
   const updateSettings = (newSettings: Partial<StudySettings>) => {
@@ -677,6 +733,7 @@ export function StudyMode({ theme }: StudyModeProps) {
 
   const fetchQuiz = useCallback(async (topic: string) => {
     setLoading(true);
+    setSessionFocusTopic(topic);
     setQuizTopic(topic);
     setQuizQuestions([]);
     setCurrentQuestionIndex(0);
@@ -705,6 +762,7 @@ export function StudyMode({ theme }: StudyModeProps) {
 
   const fetchFlashcards = useCallback(async (topic: string) => {
     setLoading(true);
+    setSessionFocusTopic(topic);
     setFlashcardTopic(topic);
     setFlashcards([]);
     setCurrentCardIndex(0);
@@ -731,6 +789,7 @@ export function StudyMode({ theme }: StudyModeProps) {
   const fetchMatchRound = useCallback(
     async (topic: string) => {
       setMatchLoading(true);
+      setSessionFocusTopic(topic);
       setMatchTopic(topic);
       setMatchTiles([]);
       setMatchMatched(new Set());
@@ -779,6 +838,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     async (topic: string, continuation?: { title: string; scenario: string; context: string }) => {
       setCaseStudyLoading(true);
       setCaseStudyError(null);
+      setSessionFocusTopic(topic);
       setCaseStudyTopic(topic);
       setCaseStudyPayload(null);
       setCaseStudyQIndex(0);
@@ -870,8 +930,9 @@ export function StudyMode({ theme }: StudyModeProps) {
     );
     setCaseStudyError(null);
     setPendingCaseDraft(null);
-    setActiveTab("casestudy");
-  }, [pendingCaseDraft]);
+    setSessionFocusTopic(d.caseStudyTopic);
+    goToTab("casestudy");
+  }, [pendingCaseDraft, goToTab]);
 
   useEffect(() => {
     if (!caseStudyPayload || !caseStudyTopic || caseStudyPhase === "results") return;
@@ -1311,19 +1372,6 @@ export function StudyMode({ theme }: StudyModeProps) {
       ? ((caseStudyQIndex + 1) / caseStudyPayload.questions.length) * 100
       : 0;
 
-  const tabs = [
-    { id: "quiz" as Tab, label: "Quiz", icon: Brain, description: "Test your knowledge" },
-    {
-      id: "casestudy" as Tab,
-      label: "Cases",
-      icon: Briefcase,
-      description: "Real-world scenarios",
-    },
-    { id: "flashcards" as Tab, label: "Flashcards", icon: Lightbulb, description: "Flip & memorize" },
-    { id: "match" as Tab, label: "Match", icon: Link2, description: "Pair term to definition" },
-    { id: "journal" as Tab, label: "Journal", icon: FileSpreadsheet, description: "Practice entries" },
-  ];
-
   const matchPairCount = matchTiles.length / 2;
   const topicsTouched = Object.keys(stats.topicStats).filter(
     (k) => (stats.topicStats[k]?.total ?? 0) > 0
@@ -1750,36 +1798,128 @@ export function StudyMode({ theme }: StudyModeProps) {
               )}
             </AnimatePresence>
 
-            {/* Tabs */}
-            <div
-              role="tablist"
-              aria-label="Study activities"
+            {sessionFocusTopic ? (
+              <div
+                className={cn(
+                  "flex shrink-0 items-center justify-between gap-3 border-b border-border/40 px-4 py-2 sm:px-6",
+                  theme === "dark" ? "bg-emerald-950/20" : "bg-emerald-50/60"
+                )}
+              >
+                <p className="min-w-0 text-xs leading-snug text-muted-foreground">
+                  <span className="font-semibold text-foreground">Focus</span>
+                  <span className="mx-1.5 text-border">·</span>
+                  <span className="text-foreground">{sessionFocusTopic}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSessionFocusTopic(null)}
+                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
+
+            <nav
+              aria-label="Study area"
               className={cn(
-                "mx-0 mb-1 flex shrink-0 gap-1 rounded-xl p-1 sm:mb-0 sm:gap-2 sm:p-1.5",
-                theme === "dark" ? "bg-card" : "bg-muted"
+                "shrink-0 border-b border-border/40 px-2 pt-2 sm:px-4 sm:pt-2.5",
+                theme === "dark" ? "bg-background/40" : "bg-background/60"
               )}
             >
-              {tabs.map((tab) => (
+              <div
+                className={cn(
+                  "flex gap-1 rounded-xl p-1 sm:gap-1.5 sm:p-1.5",
+                  theme === "dark" ? "bg-card" : "bg-muted"
+                )}
+              >
                 <button
-                  key={tab.id}
                   type="button"
-                  role="tab"
-                  id={`study-tab-${tab.id}`}
-                  aria-selected={activeTab === tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  title={tab.description}
+                  aria-pressed={studySection === "practice"}
+                  onClick={() => setStudySection("practice")}
+                  title="Quiz, flashcards, and match"
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-all sm:gap-2 sm:px-2 sm:py-2.5 sm:text-sm",
-                    activeTab === tab.id
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    studySection === "practice"
                       ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <tab.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
-                  <span className="truncate sm:max-w-none">{tab.label}</span>
+                  <Zap className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
+                  <span className="truncate">Practice</span>
                 </button>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  aria-pressed={studySection === "case"}
+                  onClick={() => setStudySection("case")}
+                  title="Scenario-based case studies"
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    studySection === "case"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Briefcase className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
+                  <span className="truncate">Case</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={studySection === "journal"}
+                  onClick={() => setStudySection("journal")}
+                  title="Practice journal entries"
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    studySection === "journal"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
+                  <span className="truncate">Journal</span>
+                </button>
+              </div>
+
+              {studySection === "practice" ? (
+                <div
+                  role="tablist"
+                  aria-label="Practice activities"
+                  className={cn(
+                    "mt-1.5 flex gap-1 rounded-lg p-0.5 sm:mt-2 sm:gap-1.5 sm:p-1",
+                    theme === "dark" ? "bg-background/80" : "bg-background/90"
+                  )}
+                >
+                  {(
+                    [
+                      { id: "quiz" as const, label: "Quiz", short: "Quiz", icon: Brain },
+                      { id: "flashcards" as const, label: "Flashcards", short: "Cards", icon: Lightbulb },
+                      { id: "match" as const, label: "Match", short: "Match", icon: Link2 },
+                    ] as const
+                  ).map((row) => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      role="tab"
+                      id={`study-drill-${row.id}`}
+                      aria-selected={drillTab === row.id}
+                      onClick={() => setDrillTab(row.id)}
+                      className={cn(
+                        "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2 sm:text-sm",
+                        drillTab === row.id
+                          ? theme === "dark"
+                            ? "bg-card text-foreground shadow-sm ring-1 ring-border/50"
+                            : "bg-muted text-foreground shadow-sm ring-1 ring-border/40"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <row.icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden />
+                      <span className="truncate sm:hidden">{row.short}</span>
+                      <span className="hidden truncate sm:inline">{row.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </nav>
 
             {/* Content: min-h-0 so this region scrolls instead of clipping header/settings */}
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
@@ -2288,10 +2428,30 @@ export function StudyMode({ theme }: StudyModeProps) {
                             Written practice · {caseStudyPayload.title}
                           </span>
                         </div>
-                        <p className="mb-4 text-sm text-muted-foreground">
-                          Draft responses like you would at work. Reveal a sample outline to self-check, or get concise
-                          AI feedback on what you typed (not scored in your stats).
-                        </p>
+                        <div
+                          className={cn(
+                            "mb-4 rounded-xl border p-3 sm:p-4",
+                            theme === "dark" ? "border-border/60 bg-card/30" : "border-border/50 bg-muted/30"
+                          )}
+                        >
+                          <p className="text-sm font-medium text-foreground">How written practice works</p>
+                          <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                            <li>
+                              <span className="font-medium text-foreground">Write</span> your answer in each box
+                              below—full sentences, like email or memo style.
+                            </li>
+                            <li>
+                              <span className="font-medium text-foreground">Self-check</span> by opening{" "}
+                              <span className="text-foreground">Show sample outline</span>. Those bullets are themes a
+                              strong response might hit; they are not the only acceptable wording.
+                            </li>
+                            <li>
+                              <span className="font-medium text-foreground">Optional AI feedback</span> comments on what
+                              you wrote. It does not change your MCQ score or saved stats. If you use it, the 1–5 buttons
+                              tell the coach how close you think you got to the outline.
+                            </li>
+                          </ol>
+                        </div>
                         <div
                           className={cn(
                             "mb-6 max-h-[28vh] overflow-y-auto rounded-xl border p-3 text-xs leading-relaxed",
@@ -2350,43 +2510,20 @@ export function StudyMode({ theme }: StudyModeProps) {
                                       : "border-input bg-background"
                                   )}
                                 />
-                                <p className="mt-3 text-xs text-muted-foreground">
-                                  Self-check vs. outline (optional, sent with AI feedback)
-                                </p>
-                                <div
-                                  className="mt-1 flex flex-wrap gap-1"
-                                  role="group"
-                                  aria-label="How well your draft covers the sample outline"
-                                >
-                                  {[1, 2, 3, 4, 5].map((n) => (
-                                    <button
-                                      key={n}
-                                      type="button"
-                                      onClick={() =>
-                                        setCaseWrittenSelfScore((prev) => {
-                                          const next = [...prev];
-                                          next[i] = n;
-                                          return next;
-                                        })
-                                      }
-                                      className={cn(
-                                        "h-8 min-w-[2rem] rounded-md border text-xs font-medium transition-colors",
-                                        caseWrittenSelfScore[i] === n
-                                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
-                                          : "border-border bg-background text-muted-foreground hover:bg-muted"
-                                      )}
-                                      aria-pressed={caseWrittenSelfScore[i] === n}
-                                    >
-                                      {n}
-                                    </button>
-                                  ))}
-                                </div>
-                                <div className="mt-3 flex flex-wrap gap-2">
+
+                                <div className="mt-4 border-t border-border/50 pt-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Self-check with sample outline
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Compare your draft to these idea bullets on your own before (or instead of) AI
+                                    feedback.
+                                  </p>
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="rounded-lg"
+                                    className="mt-2 rounded-lg"
                                     onClick={() =>
                                       setCaseStudyOutlineVisible((prev) => {
                                         const next = [...prev];
@@ -2397,6 +2534,67 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   >
                                     {showOutline ? "Hide sample outline" : "Show sample outline"}
                                   </Button>
+                                  {showOutline ? (
+                                    <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+                                      {ex.outline.map((pt, j) => (
+                                        <li key={j}>{pt}</li>
+                                      ))}
+                                    </ul>
+                                  ) : null}
+                                </div>
+
+                                <div className="mt-4 border-t border-border/50 pt-4">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Optional: your own rating
+                                  </p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    After you have read the outline (or tried without it), how well does your draft cover
+                                    those themes? This is only sent to the AI if you click{" "}
+                                    <span className="font-medium text-foreground">Get AI feedback</span>—it helps the
+                                    coach calibrate (e.g. if you felt confident but missed a big point).
+                                  </p>
+                                  <div
+                                    className="mt-2 flex flex-wrap items-center gap-1"
+                                    role="group"
+                                    aria-label="Self-rating: how well your draft covers the sample outline themes"
+                                  >
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                      <button
+                                        key={n}
+                                        type="button"
+                                        onClick={() =>
+                                          setCaseWrittenSelfScore((prev) => {
+                                            const next = [...prev];
+                                            next[i] = n;
+                                            return next;
+                                          })
+                                        }
+                                        className={cn(
+                                          "h-8 min-w-[2rem] rounded-md border text-xs font-medium transition-colors",
+                                          caseWrittenSelfScore[i] === n
+                                            ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                                        )}
+                                        aria-pressed={caseWrittenSelfScore[i] === n}
+                                        title={
+                                          n === 1
+                                            ? "1 — missed most themes"
+                                            : n === 5
+                                            ? "5 — hit the themes well"
+                                            : `${n} of 5`
+                                        }
+                                      >
+                                        {n}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground sm:text-xs">
+                                    <span>Missed most</span>
+                                    <span>Covered well</span>
+                                  </div>
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap gap-2">
                                   <Button
                                     type="button"
                                     size="sm"
@@ -2414,13 +2612,6 @@ export function StudyMode({ theme }: StudyModeProps) {
                                     )}
                                   </Button>
                                 </div>
-                                {showOutline ? (
-                                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                                    {ex.outline.map((pt, j) => (
-                                      <li key={j}>{pt}</li>
-                                    ))}
-                                  </ul>
-                                ) : null}
                                 {fb?.error ? (
                                   <p className="mt-2 text-sm text-red-500">{fb.error}</p>
                                 ) : null}
@@ -2556,7 +2747,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 className="gap-2 rounded-xl"
                                 onClick={() => {
                                   setJournalCaseHint(caseStudyPayload.journalPractice ?? null);
-                                  setActiveTab("journal");
+                                  goToTab("journal");
                                 }}
                               >
                                 <FileSpreadsheet className="h-4 w-4" />
