@@ -545,6 +545,9 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   return shuffled;
 };
 
+/** How long each loading beat stays up before switching (text+emoji vs GIF). */
+const STUDY_LOADING_BEAT_MS = 4000;
+
 /**
  * Short clips while study content loads (decorative), plus the message emoji for a GIF + emoji mix.
  * Emoji-only when reduced motion is preferred. Uses i.giphy.com direct URLs (more reliable than media subdomain for embeds).
@@ -1090,7 +1093,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     });
   }, [loadingMsgIndex, loading, matchLoading, caseStudyLoading, reduceMotion]);
 
-  // Shuffle and rotate loading rhythm: even tick = text+emoji, odd = GIF (~2s per beat)
+  // Shuffle and rotate loading rhythm: even tick = text+emoji, odd = GIF
   useEffect(() => {
     if (!loading && !matchLoading && !caseStudyLoading) {
       setLoadingMsgIndex(0);
@@ -1103,7 +1106,7 @@ export function StudyMode({ theme }: StudyModeProps) {
 
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
-    }, 2000);
+    }, STUDY_LOADING_BEAT_MS);
     return () => clearInterval(interval);
   }, [loading, matchLoading, caseStudyLoading]);
 
