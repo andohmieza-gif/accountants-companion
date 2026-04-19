@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
@@ -573,10 +573,13 @@ function StudyLoadingGraphic({
   gifSlotIndex,
   emoji,
   reducedMotion,
+  showEmojiUnderGif = true,
 }: {
   gifSlotIndex: number;
   emoji: string;
   reducedMotion: boolean | null;
+  /** When false, GIF only (emoji still used for reduced motion and error fallback). */
+  showEmojiUnderGif?: boolean;
 }) {
   const [imgReady, setImgReady] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
@@ -652,9 +655,97 @@ function StudyLoadingGraphic({
           imgReady ? "opacity-100" : "opacity-0"
         )}
       />
-      <span className="text-4xl leading-none drop-shadow-sm" aria-hidden>
-        {emoji}
-      </span>
+      {showEmojiUnderGif ? (
+        <span className="text-4xl leading-none drop-shadow-sm" aria-hidden>
+          {emoji}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function StudyLoadingRhythm({
+  tickIndex,
+  gifSlotIndex,
+  lines,
+  subtitle,
+  reduceMotion,
+  ariaLabel,
+}: {
+  tickIndex: number;
+  gifSlotIndex: number;
+  lines: readonly { text: string; emoji: string }[];
+  subtitle: string;
+  reduceMotion: boolean | null;
+  ariaLabel: string;
+}) {
+  const lineIdx = reduceMotion
+    ? tickIndex % Math.max(1, lines.length)
+    : Math.floor(tickIndex / 2) % Math.max(1, lines.length);
+  const line = lines[lineIdx] ?? { text: "", emoji: "⏳" };
+  const gifBeat = tickIndex % 2 === 1 && !reduceMotion;
+
+  return (
+    <div
+      className="flex flex-col items-center justify-center py-16"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label={ariaLabel}
+    >
+      {gifBeat ? (
+        <>
+          <StudyLoadingGraphic
+            gifSlotIndex={gifSlotIndex}
+            emoji={line.emoji}
+            reducedMotion={false}
+            showEmojiUnderGif={false}
+          />
+          <span className="sr-only">{line.text}</span>
+        </>
+      ) : reduceMotion ? (
+        <>
+          <StudyLoadingGraphic gifSlotIndex={gifSlotIndex} emoji={line.emoji} reducedMotion />
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={lineIdx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-4 text-muted-foreground"
+            >
+              {line.text}
+            </motion.p>
+          </AnimatePresence>
+        </>
+      ) : (
+        <>
+          <div className="text-5xl leading-none drop-shadow-sm" aria-hidden>
+            {line.emoji}
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={lineIdx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mt-4 text-muted-foreground"
+            >
+              {line.text}
+            </motion.p>
+          </AnimatePresence>
+        </>
+      )}
+      <p className="mt-2 text-xs text-muted-foreground/60">{subtitle}</p>
+      <div className="mt-4 flex gap-1" aria-hidden>
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="h-2 w-2 rounded-full bg-muted-foreground/40"
+            animate={{ scale: [1, 1.3, 1] }}
+            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -709,10 +800,8 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [quizComplete, setQuizComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
-  /** Random clip; picks again when loading messages rotate (~2s). StudyLoadingGraphic fades each new src. */
-  const [loadingGifSlot, setLoadingGifSlot] = useState(() =>
-    Math.floor(Math.random() * FUNNY_STUDY_LOADING_GIFS.length),
-  );
+  /** Random clip on each GIF beat (odd tick); text+emoji on even ticks. */
+  const [loadingGifSlot, setLoadingGifSlot] = useState(0);
   const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
   const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
   const [shuffledMatchMsgs, setShuffledMatchMsgs] = useState(MATCH_LOADING_MESSAGES);
@@ -988,16 +1077,20 @@ export function StudyMode({ theme }: StudyModeProps) {
     };
   }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
-  const studyLoadBusyLatchRef = useRef(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const busy = loading || matchLoading || caseStudyLoading;
-    if (busy && !studyLoadBusyLatchRef.current) {
-      setLoadingGifSlot(Math.floor(Math.random() * FUNNY_STUDY_LOADING_GIFS.length));
-    }
-    studyLoadBusyLatchRef.current = busy;
-  }, [loading, matchLoading, caseStudyLoading]);
+    if (!busy || reduceMotion) return;
+    if (loadingMsgIndex % 2 !== 1) return;
+    setLoadingGifSlot((prev) => {
+      const n = FUNNY_STUDY_LOADING_GIFS.length;
+      if (n <= 1) return 0;
+      let next = prev;
+      while (next === prev) next = Math.floor(Math.random() * n);
+      return next;
+    });
+  }, [loadingMsgIndex, loading, matchLoading, caseStudyLoading, reduceMotion]);
 
-  // Shuffle and rotate loading messages (quiz, flashcards, match, or case study)
+  // Shuffle and rotate loading rhythm: even tick = text+emoji, odd = GIF (~2s per beat)
   useEffect(() => {
     if (!loading && !matchLoading && !caseStudyLoading) {
       setLoadingMsgIndex(0);
@@ -1010,13 +1103,6 @@ export function StudyMode({ theme }: StudyModeProps) {
 
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
-      setLoadingGifSlot((prev) => {
-        const n = FUNNY_STUDY_LOADING_GIFS.length;
-        if (n <= 1) return 0;
-        let next = prev;
-        while (next === prev) next = Math.floor(Math.random() * n);
-        return next;
-      });
     }, 2000);
     return () => clearInterval(interval);
   }, [loading, matchLoading, caseStudyLoading]);
@@ -2597,40 +2683,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : loading ? (
-                      <div
-                        className="flex flex-col items-center justify-center py-16"
-                        aria-live="polite"
-                        aria-busy="true"
-                        aria-label="Loading quiz"
-                      >
-                        <StudyLoadingGraphic
-                          gifSlotIndex={loadingGifSlot}
-                          emoji={shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].emoji}
-                          reducedMotion={reduceMotion}
-                        />
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={loadingMsgIndex}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mt-4 text-muted-foreground"
-                          >
-                            {shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].text}
-                          </motion.p>
-                        </AnimatePresence>
-                        <p className="mt-2 text-xs text-muted-foreground/60">{quizTopic}</p>
-                        <div className="mt-4 flex gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <motion.div
-                              key={i}
-                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
-                              animate={{ scale: [1, 1.3, 1] }}
-                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <StudyLoadingRhythm
+                        tickIndex={loadingMsgIndex}
+                        gifSlotIndex={loadingGifSlot}
+                        lines={shuffledQuizMsgs}
+                        subtitle={quizTopic ?? ""}
+                        reduceMotion={reduceMotion}
+                        ariaLabel="Loading quiz"
+                      />
                     ) : quizComplete ? (
                       <>
                         <Confetti active={score >= quizQuestions.length * 0.7} reducedMotion={reduceMotion} />
@@ -3036,35 +3096,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : caseStudyLoading ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <StudyLoadingGraphic
-                          gifSlotIndex={loadingGifSlot}
-                          emoji={shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].emoji}
-                          reducedMotion={reduceMotion}
-                        />
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={loadingMsgIndex}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mt-4 text-muted-foreground"
-                          >
-                            {shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].text}
-                          </motion.p>
-                        </AnimatePresence>
-                        <p className="mt-2 text-xs text-muted-foreground/60">{caseStudyTopic}</p>
-                        <div className="mt-4 flex gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <motion.div
-                              key={i}
-                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
-                              animate={{ scale: [1, 1.3, 1] }}
-                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <StudyLoadingRhythm
+                        tickIndex={loadingMsgIndex}
+                        gifSlotIndex={loadingGifSlot}
+                        lines={shuffledCaseStudyMsgs}
+                        subtitle={caseStudyTopic ?? ""}
+                        reduceMotion={reduceMotion}
+                        ariaLabel="Loading case study"
+                      />
                     ) : caseStudyError && !caseStudyPayload ? (
                       <div className="flex flex-col items-center py-12 text-center">
                         <p className="text-muted-foreground">{caseStudyError}</p>
@@ -3687,35 +3726,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : loading ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <StudyLoadingGraphic
-                          gifSlotIndex={loadingGifSlot}
-                          emoji={shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
-                          reducedMotion={reduceMotion}
-                        />
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={loadingMsgIndex}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mt-4 text-muted-foreground"
-                          >
-                            {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].text}
-                          </motion.p>
-                        </AnimatePresence>
-                        <p className="mt-2 text-xs text-muted-foreground/60">{flashcardTopic}</p>
-                        <div className="mt-4 flex gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <motion.div
-                              key={i}
-                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
-                              animate={{ scale: [1, 1.3, 1] }}
-                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <StudyLoadingRhythm
+                        tickIndex={loadingMsgIndex}
+                        gifSlotIndex={loadingGifSlot}
+                        lines={shuffledFlashcardMsgs}
+                        subtitle={flashcardTopic ?? ""}
+                        reduceMotion={reduceMotion}
+                        ariaLabel="Loading flashcards"
+                      />
                     ) : currentCard ? (
                       <div>
                         <div className="mb-4 flex items-center justify-between">
@@ -3928,35 +3946,14 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : matchLoading ? (
-                      <div className="flex flex-col items-center justify-center py-16">
-                        <StudyLoadingGraphic
-                          gifSlotIndex={loadingGifSlot}
-                          emoji={shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].emoji}
-                          reducedMotion={reduceMotion}
-                        />
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={loadingMsgIndex}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="mt-4 text-muted-foreground"
-                          >
-                            {shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].text}
-                          </motion.p>
-                        </AnimatePresence>
-                        <p className="mt-2 text-xs text-muted-foreground/60">{matchTopic}</p>
-                        <div className="mt-4 flex gap-1">
-                          {[0, 1, 2].map((i) => (
-                            <motion.div
-                              key={i}
-                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
-                              animate={{ scale: [1, 1.3, 1] }}
-                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
-                        </div>
-                      </div>
+                      <StudyLoadingRhythm
+                        tickIndex={loadingMsgIndex}
+                        gifSlotIndex={loadingGifSlot}
+                        lines={shuffledMatchMsgs}
+                        subtitle={matchTopic ?? ""}
+                        reduceMotion={reduceMotion}
+                        ariaLabel="Loading match game"
+                      />
                     ) : matchError && matchTiles.length === 0 ? (
                       <div className="py-8 text-center">
                         <p className="text-muted-foreground">{matchError}</p>
