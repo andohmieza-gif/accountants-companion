@@ -27,6 +27,8 @@ import {
   Settings,
   Star,
   Link2,
+  Briefcase,
+  PenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,9 @@ type StudyStats = {
   totalQuestions: number;
   bestStreak: number;
   totalFlashcards: number;
+  caseStudyCompleted: number;
+  caseStudyCorrect: number;
+  caseStudyQuestionCount: number;
   topicStats: Record<string, { correct: number; total: number }>;
 };
 
@@ -57,6 +62,9 @@ const defaultStats: StudyStats = {
   totalQuestions: 0,
   bestStreak: 0,
   totalFlashcards: 0,
+  caseStudyCompleted: 0,
+  caseStudyCorrect: 0,
+  caseStudyQuestionCount: 0,
   topicStats: {},
 };
 
@@ -155,7 +163,7 @@ function Confetti({ active }: { active: boolean }) {
   );
 }
 
-type Tab = "quiz" | "flashcards" | "match" | "journal";
+type Tab = "quiz" | "casestudy" | "flashcards" | "match" | "journal";
 
 type MatchTile = {
   id: string;
@@ -175,6 +183,35 @@ interface Flashcard {
   front: string;
   back: string;
 }
+
+type CaseStudyQuestion = {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+};
+
+type CaseStudyWrittenExercise = {
+  role: string;
+  prompt: string;
+  outline: string[];
+};
+
+type CaseStudyPayload = {
+  title: string;
+  context: string;
+  scenario: string;
+  questions: CaseStudyQuestion[];
+  practiceNotes: string;
+  discussionQuestions?: string[];
+  writtenExercises?: CaseStudyWrittenExercise[];
+};
+
+type CaseStudyWrittenFeedbackSlot = {
+  loading: boolean;
+  text: string | null;
+  error: string | null;
+};
 
 export interface StudyModeProps {
   theme: "light" | "dark";
@@ -198,6 +235,9 @@ const QUIZ_TOPICS = [
   { name: "Payroll & Employee Benefits", icon: "👥" },
   { name: "Property, Plant & Equipment", icon: "🏭" },
 ];
+
+/** Applied scenarios — same themes as quiz, written as narrative case studies. */
+const CASE_STUDY_TOPICS = QUIZ_TOPICS;
 
 const FLASHCARD_TOPICS = [
   { name: "Basic Accounting Terms", icon: "📚", count: 10 },
@@ -279,6 +319,17 @@ const FLASHCARD_LOADING_MESSAGES = [
   { text: "Flash! Ahh-ahh...", emoji: "⚡" },
 ];
 
+const CASE_STUDY_LOADING_MESSAGES = [
+  { text: "Drafting a realistic client situation...", emoji: "📋" },
+  { text: "Building facts you can reason from...", emoji: "🏗️" },
+  { text: "What would the controller do?", emoji: "🤔" },
+  { text: "Grounding the case in U.S. GAAP...", emoji: "⚖️" },
+  { text: "Almost ready to read...", emoji: "📖" },
+  { text: "Sharpening professional judgment...", emoji: "🎯" },
+  { text: "Checking materiality (metaphorically)...", emoji: "🔍" },
+  { text: "This one could happen on the job...", emoji: "💼" },
+];
+
 const shuffleArray = <T,>(arr: T[]): T[] => {
   const shuffled = [...arr];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -302,6 +353,7 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
   const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
+  const [shuffledCaseStudyMsgs, setShuffledCaseStudyMsgs] = useState(CASE_STUDY_LOADING_MESSAGES);
   const [streak, setStreak] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [correctFlash, setCorrectFlash] = useState(false);
@@ -317,7 +369,20 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchComplete, setMatchComplete] = useState(false);
   const [matchError, setMatchError] = useState<string | null>(null);
-  
+
+  const [caseStudyTopic, setCaseStudyTopic] = useState<string | null>(null);
+  const [caseStudyPayload, setCaseStudyPayload] = useState<CaseStudyPayload | null>(null);
+  const [caseStudyLoading, setCaseStudyLoading] = useState(false);
+  const [caseStudyError, setCaseStudyError] = useState<string | null>(null);
+  const [caseStudyQIndex, setCaseStudyQIndex] = useState(0);
+  const [caseStudySelected, setCaseStudySelected] = useState<number | null>(null);
+  const [caseStudyShowResult, setCaseStudyShowResult] = useState(false);
+  const [caseStudyPhase, setCaseStudyPhase] = useState<"mcq" | "written" | "results">("mcq");
+  const [caseStudyScore, setCaseStudyScore] = useState(0);
+  const [caseStudyWrittenText, setCaseStudyWrittenText] = useState<string[]>([]);
+  const [caseStudyOutlineVisible, setCaseStudyOutlineVisible] = useState<boolean[]>([]);
+  const [caseStudyFeedback, setCaseStudyFeedback] = useState<CaseStudyWrittenFeedbackSlot[]>([]);
+
   // New features state
   const [showSettings, setShowSettings] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -335,7 +400,19 @@ export function StudyMode({ theme }: StudyModeProps) {
       if (savedSettings) setSettings(JSON.parse(savedSettings));
       
       const savedStats = localStorage.getItem(STUDY_STATS_KEY);
-      if (savedStats) setStats(JSON.parse(savedStats));
+      if (savedStats) {
+        try {
+          const parsed = JSON.parse(savedStats) as Partial<StudyStats>;
+          setStats({
+            ...defaultStats,
+            ...parsed,
+            topicStats:
+              parsed.topicStats && typeof parsed.topicStats === "object" ? parsed.topicStats : {},
+          });
+        } catch {
+          /* ignore */
+        }
+      }
     } catch (e) {
       // Ignore errors
     }
@@ -399,20 +476,21 @@ export function StudyMode({ theme }: StudyModeProps) {
     };
   }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
-  // Shuffle and rotate loading messages (quiz, flashcards, or match)
+  // Shuffle and rotate loading messages (quiz, flashcards, match, or case study)
   useEffect(() => {
-    if (!loading && !matchLoading) {
+    if (!loading && !matchLoading && !caseStudyLoading) {
       setLoadingMsgIndex(0);
       return;
     }
     setShuffledQuizMsgs(shuffleArray(QUIZ_LOADING_MESSAGES));
     setShuffledFlashcardMsgs(shuffleArray(FLASHCARD_LOADING_MESSAGES));
+    setShuffledCaseStudyMsgs(shuffleArray(CASE_STUDY_LOADING_MESSAGES));
 
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
     }, 2000);
     return () => clearInterval(interval);
-  }, [loading, matchLoading]);
+  }, [loading, matchLoading, caseStudyLoading]);
   const [isFlipped, setIsFlipped] = useState(false);
 
   const [journalEntries, setJournalEntries] = useState<{ account: string; debit: string; credit: string }[]>([
@@ -502,6 +580,176 @@ export function StudyMode({ theme }: StudyModeProps) {
     }
   }, []);
 
+  const fetchCaseStudy = useCallback(async (topic: string) => {
+    setCaseStudyLoading(true);
+    setCaseStudyError(null);
+    setCaseStudyTopic(topic);
+    setCaseStudyPayload(null);
+    setCaseStudyQIndex(0);
+    setCaseStudySelected(null);
+    setCaseStudyShowResult(false);
+    setCaseStudyPhase("mcq");
+    setCaseStudyScore(0);
+    setCaseStudyWrittenText([]);
+    setCaseStudyOutlineVisible([]);
+    setCaseStudyFeedback([]);
+
+    try {
+      const res = await fetch("/api/case-study", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCaseStudyError(typeof data.error === "string" ? data.error : "Could not load case study.");
+        return;
+      }
+      const payload = data as CaseStudyPayload;
+      if (!payload?.scenario || !Array.isArray(payload.questions) || payload.questions.length < 3) {
+        setCaseStudyError("Invalid response. Try again.");
+        return;
+      }
+      setCaseStudyPayload(payload);
+    } catch (e) {
+      console.error(e);
+      setCaseStudyError("Network error. Try again.");
+    } finally {
+      setCaseStudyLoading(false);
+    }
+  }, []);
+
+  const resetCaseStudy = () => {
+    setCaseStudyTopic(null);
+    setCaseStudyPayload(null);
+    setCaseStudyError(null);
+    setCaseStudyQIndex(0);
+    setCaseStudySelected(null);
+    setCaseStudyShowResult(false);
+    setCaseStudyPhase("mcq");
+    setCaseStudyScore(0);
+    setCaseStudyWrittenText([]);
+    setCaseStudyOutlineVisible([]);
+    setCaseStudyFeedback([]);
+  };
+
+  const handleCaseStudySelect = (index: number) => {
+    if (caseStudyShowResult || !caseStudyPayload) return;
+    const q = caseStudyPayload.questions[caseStudyQIndex];
+    if (!q) return;
+    setCaseStudySelected(index);
+    setCaseStudyShowResult(true);
+    if (index === q.correctIndex) {
+      playSound("correct", settings.soundEnabled);
+      setCaseStudyScore((s) => s + 1);
+    } else {
+      playSound("wrong", settings.soundEnabled);
+    }
+  };
+
+  const finishCaseStudy = () => {
+    if (!caseStudyPayload) return;
+    playSound("complete", settings.soundEnabled);
+    const topic = caseStudyTopic || "Unknown";
+    const n = caseStudyPayload.questions.length;
+    const topicStats = { ...stats.topicStats };
+    if (!topicStats[topic]) topicStats[topic] = { correct: 0, total: 0 };
+    topicStats[topic].correct += caseStudyScore;
+    topicStats[topic].total += n;
+    updateStats({
+      caseStudyCompleted: stats.caseStudyCompleted + 1,
+      caseStudyCorrect: stats.caseStudyCorrect + caseStudyScore,
+      caseStudyQuestionCount: stats.caseStudyQuestionCount + n,
+      topicStats,
+    });
+    setCaseStudyPhase("results");
+  };
+
+  const nextCaseStudyQuestion = () => {
+    if (!caseStudyPayload) return;
+    if (caseStudyQIndex < caseStudyPayload.questions.length - 1) {
+      setCaseStudyQIndex((i) => i + 1);
+      setCaseStudySelected(null);
+      setCaseStudyShowResult(false);
+    } else {
+      setCaseStudyShowResult(false);
+      setCaseStudySelected(null);
+      const exercises = caseStudyPayload.writtenExercises;
+      if (exercises && exercises.length > 0) {
+        setCaseStudyWrittenText(exercises.map(() => ""));
+        setCaseStudyOutlineVisible(exercises.map(() => false));
+        setCaseStudyFeedback(
+          exercises.map(() => ({ loading: false, text: null, error: null }))
+        );
+        setCaseStudyPhase("written");
+      } else {
+        finishCaseStudy();
+      }
+    }
+  };
+
+  const fetchCaseStudyWrittenFeedback = async (exerciseIndex: number) => {
+    const payload = caseStudyPayload;
+    const exercises = payload?.writtenExercises;
+    if (!payload || !exercises?.[exerciseIndex]) return;
+    const answer = caseStudyWrittenText[exerciseIndex]?.trim();
+    if (!answer) return;
+
+    setCaseStudyFeedback((prev) => {
+      const next = [...prev];
+      next[exerciseIndex] = { loading: true, text: null, error: null };
+      return next;
+    });
+
+    try {
+      const ex = exercises[exerciseIndex];
+      const res = await fetch("/api/case-study-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caseTitle: payload.title,
+          scenario: payload.scenario.slice(0, 8000),
+          exerciseRole: ex.role,
+          exercisePrompt: ex.prompt,
+          userAnswer: answer,
+          modelOutline: ex.outline,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCaseStudyFeedback((prev) => {
+          const next = [...prev];
+          next[exerciseIndex] = {
+            loading: false,
+            text: null,
+            error: typeof data.error === "string" ? data.error : "Could not get feedback.",
+          };
+          return next;
+        });
+        return;
+      }
+      setCaseStudyFeedback((prev) => {
+        const next = [...prev];
+        next[exerciseIndex] = {
+          loading: false,
+          text: typeof data.feedback === "string" ? data.feedback : null,
+          error: null,
+        };
+        return next;
+      });
+    } catch {
+      setCaseStudyFeedback((prev) => {
+        const next = [...prev];
+        next[exerciseIndex] = {
+          loading: false,
+          text: null,
+          error: "Network error.",
+        };
+        return next;
+      });
+    }
+  };
+
   const handleAnswerSelect = (index: number) => {
     if (showResult) return;
     
@@ -567,6 +815,51 @@ export function StudyMode({ theme }: StudyModeProps) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeTab, showResult]);
+
+  // Keyboard shortcuts for case study
+  useEffect(() => {
+    const q = caseStudyPayload?.questions[caseStudyQIndex];
+    if (
+      activeTab !== "casestudy" ||
+      !q ||
+      caseStudyShowResult ||
+      caseStudyLoading ||
+      caseStudyPhase !== "mcq"
+    )
+      return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key;
+      if (key >= "1" && key <= "4") {
+        const index = parseInt(key, 10) - 1;
+        if (index < q.options.length) handleCaseStudySelect(index);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    activeTab,
+    caseStudyPayload,
+    caseStudyQIndex,
+    caseStudyShowResult,
+    caseStudyLoading,
+    caseStudyPhase,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "casestudy" || !caseStudyShowResult || caseStudyPhase !== "mcq") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        nextCaseStudyQuestion();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, caseStudyShowResult, caseStudyPhase]);
 
   const nextQuestion = () => {
     if (currentQuestionIndex < quizQuestions.length - 1) {
@@ -670,10 +963,21 @@ export function StudyMode({ theme }: StudyModeProps) {
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const currentCard = flashcards[currentCardIndex];
+  const currentCaseStudyQ = caseStudyPayload?.questions[caseStudyQIndex];
   const progressPercent = quizQuestions.length > 0 ? ((currentQuestionIndex + 1) / quizQuestions.length) * 100 : 0;
+  const caseStudyProgressPercent =
+    caseStudyPayload && caseStudyPayload.questions.length > 0
+      ? ((caseStudyQIndex + 1) / caseStudyPayload.questions.length) * 100
+      : 0;
 
   const tabs = [
     { id: "quiz" as Tab, label: "Quiz", icon: Brain, description: "Test your knowledge" },
+    {
+      id: "casestudy" as Tab,
+      label: "Cases",
+      icon: Briefcase,
+      description: "Real-world scenarios",
+    },
     { id: "flashcards" as Tab, label: "Flashcards", icon: Lightbulb, description: "Flip & memorize" },
     { id: "match" as Tab, label: "Match", icon: Link2, description: "Pair term to definition" },
     { id: "journal" as Tab, label: "Journal", icon: FileSpreadsheet, description: "Practice entries" },
@@ -925,6 +1229,21 @@ export function StudyMode({ theme }: StudyModeProps) {
                       )}>
                         <p className="text-xl font-bold">{stats.totalFlashcards}</p>
                         <p className="text-[10px] text-muted-foreground">Cards</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className={cn("rounded-lg p-2 text-center", "bg-muted")}>
+                        <p className="text-xl font-bold">{stats.caseStudyCompleted}</p>
+                        <p className="text-[10px] text-muted-foreground">Cases done</p>
+                      </div>
+                      <div className={cn("rounded-lg p-2 text-center", "bg-muted")}>
+                        <p className="text-xl font-bold">
+                          {stats.caseStudyQuestionCount > 0
+                            ? Math.round((stats.caseStudyCorrect / stats.caseStudyQuestionCount) * 100)
+                            : 0}
+                          %
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Case accuracy</p>
                       </div>
                     </div>
                   </div>
@@ -1264,6 +1583,455 @@ export function StudyMode({ theme }: StudyModeProps) {
                                     <>Continue <ArrowRight className="h-4 w-4" /></>
                                   ) : (
                                     <>See Results <Trophy className="h-4 w-4" /></>
+                                  )}
+                                </Button>
+                                <span className="hidden text-xs text-muted-foreground/50 sm:block">
+                                  Press Space
+                                </span>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ) : null}
+                  </motion.div>
+                )}
+
+                {/* Case study tab */}
+                {activeTab === "casestudy" && (
+                  <motion.div
+                    key="casestudy"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {!caseStudyTopic ? (
+                      <div>
+                        <p className="mb-5 text-muted-foreground">
+                          Real-world scenarios: multiple-choice, then typed exercises (memo-style tasks, outlines, or
+                          judgment calls) with optional AI feedback — plus discussion prompts.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {CASE_STUDY_TOPICS.map((topic) => (
+                            <motion.button
+                              key={topic.name}
+                              onClick={() => fetchCaseStudy(topic.name)}
+                              className={cn(
+                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                                theme === "dark"
+                                  ? "border-border bg-card hover:border-foreground/20 hover:bg-card/80"
+                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                              )}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <span className="text-2xl">{topic.icon}</span>
+                              <span className="flex-1 text-sm font-medium">{topic.name}</span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : caseStudyLoading ? (
+                      <div className="flex flex-col items-center justify-center py-16">
+                        <motion.div
+                          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                          className="text-5xl"
+                        >
+                          {shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].emoji}
+                        </motion.div>
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={loadingMsgIndex}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="mt-4 text-muted-foreground"
+                          >
+                            {shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].text}
+                          </motion.p>
+                        </AnimatePresence>
+                        <p className="mt-2 text-xs text-muted-foreground/60">{caseStudyTopic}</p>
+                        <div className="mt-4 flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
+                              animate={{ scale: [1, 1.3, 1] }}
+                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ) : caseStudyError && !caseStudyPayload ? (
+                      <div className="flex flex-col items-center py-12 text-center">
+                        <p className="text-muted-foreground">{caseStudyError}</p>
+                        <Button className="mt-6 rounded-xl" onClick={resetCaseStudy}>
+                          Back to topics
+                        </Button>
+                      </div>
+                    ) : caseStudyPayload &&
+                      caseStudyPhase === "written" &&
+                      (caseStudyPayload.writtenExercises?.length ?? 0) > 0 ? (
+                      <motion.div
+                        key="case-written"
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex flex-col pb-4"
+                      >
+                        <div className="mb-4 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={resetCaseStudy}
+                            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Exit
+                          </button>
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Written practice · {caseStudyPayload.title}
+                          </span>
+                        </div>
+                        <p className="mb-4 text-sm text-muted-foreground">
+                          Draft responses like you would at work. Reveal a sample outline to self-check, or get concise
+                          AI feedback on what you typed (not scored in your stats).
+                        </p>
+                        <div
+                          className={cn(
+                            "mb-6 max-h-[28vh] overflow-y-auto rounded-xl border p-3 text-xs leading-relaxed",
+                            theme === "dark" ? "border-border bg-card/40" : "border-border/60 bg-muted/25"
+                          )}
+                        >
+                          <p className="mb-1 font-medium text-foreground">Case recap</p>
+                          <p className="text-muted-foreground">{caseStudyPayload.context}</p>
+                          <div className="mt-2 space-y-2 text-muted-foreground">
+                            {caseStudyPayload.scenario.split(/\n\n+/).slice(0, 4).map((para, i) => (
+                              <p key={i}>{para.trim()}</p>
+                            ))}
+                            {caseStudyPayload.scenario.split(/\n\n+/).length > 4 ? (
+                              <p className="italic opacity-80">… scroll the full case in your notes if needed.</p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="space-y-8">
+                          {(caseStudyPayload.writtenExercises ?? []).map((ex, i) => {
+                            const fb = caseStudyFeedback[i];
+                            const showOutline = caseStudyOutlineVisible[i];
+                            return (
+                              <div
+                                key={i}
+                                className={cn(
+                                  "rounded-xl border p-4",
+                                  theme === "dark" ? "border-border bg-card/30" : "border-border/60 bg-background/60"
+                                )}
+                              >
+                                <div className="mb-2 flex items-start gap-2">
+                                  <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                  <div>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                      {ex.role}
+                                    </p>
+                                    <p className="mt-1 text-sm font-medium leading-snug">{ex.prompt}</p>
+                                  </div>
+                                </div>
+                                <textarea
+                                  value={caseStudyWrittenText[i] ?? ""}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    setCaseStudyWrittenText((prev) => {
+                                      const next = [...prev];
+                                      next[i] = v;
+                                      return next;
+                                    });
+                                  }}
+                                  placeholder="Type your response…"
+                                  rows={6}
+                                  className={cn(
+                                    "mt-3 w-full resize-y rounded-lg border px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                                    theme === "dark"
+                                      ? "border-border bg-card/50"
+                                      : "border-input bg-background"
+                                  )}
+                                />
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-lg"
+                                    onClick={() =>
+                                      setCaseStudyOutlineVisible((prev) => {
+                                        const next = [...prev];
+                                        next[i] = !next[i];
+                                        return next;
+                                      })
+                                    }
+                                  >
+                                    {showOutline ? "Hide sample outline" : "Show sample outline"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="rounded-lg"
+                                    disabled={!(caseStudyWrittenText[i] ?? "").trim() || fb?.loading}
+                                    onClick={() => fetchCaseStudyWrittenFeedback(i)}
+                                  >
+                                    {fb?.loading ? (
+                                      <>
+                                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                        Feedback…
+                                      </>
+                                    ) : (
+                                      "Get AI feedback"
+                                    )}
+                                  </Button>
+                                </div>
+                                {showOutline ? (
+                                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                    {ex.outline.map((pt, j) => (
+                                      <li key={j}>{pt}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                                {fb?.error ? (
+                                  <p className="mt-2 text-sm text-red-500">{fb.error}</p>
+                                ) : null}
+                                {fb?.text ? (
+                                  <div
+                                    className={cn(
+                                      "mt-3 rounded-lg border p-3 text-sm leading-relaxed",
+                                      theme === "dark" ? "border-border bg-muted/20" : "border-border/60 bg-muted/40"
+                                    )}
+                                  >
+                                    <p className="mb-1 text-xs font-semibold text-foreground">Feedback</p>
+                                    <p className="whitespace-pre-wrap text-muted-foreground">{fb.text}</p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <Button onClick={finishCaseStudy} size="lg" className="mt-8 w-full gap-2 rounded-xl sm:w-auto sm:self-center">
+                          Continue to results
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </motion.div>
+                    ) : caseStudyPhase === "results" && caseStudyPayload ? (
+                      <>
+                        <Confetti
+                          active={caseStudyScore >= Math.ceil(caseStudyPayload.questions.length * 0.7)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex flex-col py-6"
+                        >
+                          <div className="mb-6 text-center">
+                            <p className="text-sm font-medium text-muted-foreground">{caseStudyPayload.title}</p>
+                            <p className="mt-2 text-4xl font-bold tracking-tight">
+                              {caseStudyScore}
+                              <span className="text-2xl text-muted-foreground">
+                                /{caseStudyPayload.questions.length}
+                              </span>
+                            </p>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              {Math.round((caseStudyScore / caseStudyPayload.questions.length) * 100)}% correct on
+                              multiple choice
+                            </p>
+                            {caseStudyPayload.writtenExercises && caseStudyPayload.writtenExercises.length > 0 ? (
+                              <p className="mt-1 text-xs text-muted-foreground/80">
+                                Written exercises are practice only — not included in this score.
+                              </p>
+                            ) : null}
+                          </div>
+                          <div
+                            className={cn(
+                              "rounded-xl border p-4 text-left text-sm leading-relaxed",
+                              theme === "dark" ? "border-border bg-card/80" : "border-border/60 bg-muted/40"
+                            )}
+                          >
+                            <p className="mb-2 font-semibold text-foreground">In practice</p>
+                            <p className="text-muted-foreground">{caseStudyPayload.practiceNotes}</p>
+                          </div>
+                          {caseStudyPayload.discussionQuestions &&
+                            caseStudyPayload.discussionQuestions.length > 0 && (
+                              <div
+                                className={cn(
+                                  "mt-4 rounded-xl border p-4 text-left text-sm leading-relaxed",
+                                  theme === "dark" ? "border-border bg-card/50" : "border-border/60 bg-background/80"
+                                )}
+                              >
+                                <p className="mb-1 font-semibold text-foreground">Discuss</p>
+                                <p className="mb-3 text-xs text-muted-foreground">
+                                  Open-ended — work through solo, with a study group, or in class.
+                                </p>
+                                <ol className="list-decimal space-y-2 pl-4 text-muted-foreground">
+                                  {caseStudyPayload.discussionQuestions.map((q, i) => (
+                                    <li key={i}>{q}</li>
+                                  ))}
+                                </ol>
+                              </div>
+                            )}
+                          <Button onClick={resetCaseStudy} size="lg" className="mt-8 gap-2 self-center rounded-xl px-6">
+                            <RotateCcw className="h-4 w-4" />
+                            Another case
+                          </Button>
+                        </motion.div>
+                      </>
+                    ) : caseStudyPhase === "mcq" && currentCaseStudyQ && caseStudyPayload ? (
+                      <div>
+                        <div className="mb-6">
+                          <div className="mb-2 flex items-center justify-between text-sm">
+                            <button
+                              onClick={resetCaseStudy}
+                              className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                              Exit
+                            </button>
+                            <span className="text-muted-foreground">
+                              <span className="font-medium text-foreground">{caseStudyQIndex + 1}</span>
+                              {" of "}
+                              {caseStudyPayload.questions.length}
+                            </span>
+                          </div>
+                          <div
+                            className={cn(
+                              "h-2 overflow-hidden rounded-full",
+                              theme === "dark" ? "bg-card" : "bg-muted"
+                            )}
+                          >
+                            <motion.div
+                              className="h-full rounded-full bg-foreground"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${caseStudyProgressPercent}%` }}
+                              transition={{ duration: 0.3 }}
+                            />
+                          </div>
+                        </div>
+
+                        <div
+                          className={cn(
+                            "mb-6 max-h-[40vh] overflow-y-auto rounded-xl border p-4 text-sm leading-relaxed",
+                            theme === "dark" ? "border-border bg-card/50" : "border-border/60 bg-muted/30"
+                          )}
+                        >
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="font-semibold">{caseStudyPayload.title}</span>
+                          </div>
+                          <p className="mb-3 text-xs text-muted-foreground">{caseStudyPayload.context}</p>
+                          <div className="space-y-3 text-muted-foreground">
+                            {caseStudyPayload.scenario.split(/\n\n+/).map((para, i) => (
+                              <p key={i}>{para.trim()}</p>
+                            ))}
+                          </div>
+                        </div>
+
+                        <p className="mb-4 text-lg font-medium leading-relaxed">{currentCaseStudyQ.question}</p>
+                        <div className="space-y-3">
+                          {currentCaseStudyQ.options.map((option, i) => {
+                            const isCorrect = i === currentCaseStudyQ.correctIndex;
+                            const isSelected = caseStudySelected === i;
+                            const letter = String.fromCharCode(65 + i);
+                            const cleanOption = option.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "");
+
+                            return (
+                              <motion.button
+                                key={i}
+                                onClick={() => handleCaseStudySelect(i)}
+                                disabled={caseStudyShowResult}
+                                className={cn(
+                                  "flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
+                                  caseStudyShowResult
+                                    ? isCorrect
+                                      ? "border-emerald-500 bg-emerald-500/10"
+                                      : isSelected
+                                        ? "border-red-500 bg-red-500/10"
+                                        : "border-border/50 opacity-40"
+                                    : cn(
+                                        "border-border hover:border-foreground/20",
+                                        theme === "dark" ? "bg-card/50 hover:bg-card" : "hover:bg-muted/80"
+                                      )
+                                )}
+                                whileHover={!caseStudyShowResult ? { scale: 1.01 } : {}}
+                                whileTap={!caseStudyShowResult ? { scale: 0.99 } : {}}
+                              >
+                                <span
+                                  className={cn(
+                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium transition-all",
+                                    caseStudyShowResult
+                                      ? isCorrect
+                                        ? "bg-emerald-500 text-white"
+                                        : isSelected
+                                          ? "bg-red-500 text-white"
+                                          : "bg-muted"
+                                      : "bg-muted"
+                                  )}
+                                >
+                                  {caseStudyShowResult && isCorrect ? (
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  ) : caseStudyShowResult && isSelected ? (
+                                    <XCircle className="h-4 w-4" />
+                                  ) : (
+                                    letter
+                                  )}
+                                </span>
+                                <span className="flex-1">{cleanOption}</span>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+
+                        <AnimatePresence>
+                          {caseStudyShowResult && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="mt-6"
+                            >
+                              <motion.div
+                                className={cn(
+                                  "rounded-xl border p-4",
+                                  caseStudySelected === currentCaseStudyQ.correctIndex
+                                    ? "border-emerald-500/20 bg-emerald-500/5"
+                                    : "border-red-500/20 bg-red-500/5"
+                                )}
+                                initial={{ scale: 0.95 }}
+                                animate={{ scale: 1 }}
+                              >
+                                <p
+                                  className={cn(
+                                    "mb-1 text-sm font-semibold",
+                                    caseStudySelected === currentCaseStudyQ.correctIndex
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-red-500"
+                                  )}
+                                >
+                                  {caseStudySelected === currentCaseStudyQ.correctIndex
+                                    ? "Correct"
+                                    : "Incorrect"}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{currentCaseStudyQ.explanation}</p>
+                              </motion.div>
+                              <div className="mt-4 flex items-center gap-2">
+                                <Button onClick={nextCaseStudyQuestion} className="flex-1 gap-2 rounded-xl">
+                                  {caseStudyQIndex < caseStudyPayload.questions.length - 1 ? (
+                                    <>
+                                      Continue <ArrowRight className="h-4 w-4" />
+                                    </>
+                                  ) : caseStudyPayload.writtenExercises &&
+                                    caseStudyPayload.writtenExercises.length > 0 ? (
+                                    <>
+                                      Written practice <PenLine className="h-4 w-4" />
+                                    </>
+                                  ) : (
+                                    <>
+                                      See results <Trophy className="h-4 w-4" />
+                                    </>
                                   )}
                                 </Button>
                                 <span className="hidden text-xs text-muted-foreground/50 sm:block">

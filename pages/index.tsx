@@ -991,7 +991,7 @@ export default function Home() {
                 )}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                title="Open Study Mode: quizzes, flashcards, and practice"
+                title="Open Study Mode: quizzes, case studies, flashcards, and practice"
               >
                 <BookOpen className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
                 <span className="pr-0.5">Study</span>
