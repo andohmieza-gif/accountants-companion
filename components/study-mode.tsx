@@ -33,9 +33,18 @@ import {
   Copy,
   Crosshair,
   Keyboard,
+  Download,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { StandardsFocus } from "@/lib/standards-prompt";
+import { sortFlashcardsForReview, recordFlashcardReview } from "@/lib/flashcard-srs";
+import {
+  consumeMilestoneToasts,
+  persistChatStudyContext,
+  weakTopicsFromStats,
+} from "@/lib/study-extras";
 import {
   computeStudyStreak,
   loadStudyDays,
@@ -99,6 +108,8 @@ type StudySettings = {
   matchPairCount: MatchPairCount;
   matchTimedChallenge: boolean;
   caseFeedbackStyle: "coaching" | "exam";
+  /** Steers quiz, case, flashcards, and match card generation. */
+  standardsFocus: StandardsFocus;
 };
 
 const defaultStats: StudyStats = {
@@ -121,6 +132,7 @@ const defaultSettings: StudySettings = {
   matchPairCount: 6,
   matchTimedChallenge: false,
   caseFeedbackStyle: "coaching",
+  standardsFocus: "gaap",
 };
 
 // Simple sound effects using Web Audio API
@@ -912,6 +924,9 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [sessionFocusTopic, setSessionFocusTopic] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [journalConfetti, setJournalConfetti] = useState(false);
+  const [quizTimedOverride, setQuizTimedOverride] = useState(false);
+  const [quizFetchError, setQuizFetchError] = useState<string | null>(null);
+  const [milestoneToast, setMilestoneToast] = useState<string | null>(null);
 
   const reduceMotion = useReducedMotion();
 
@@ -921,6 +936,7 @@ export function StudyMode({ theme }: StudyModeProps) {
   const skipFirstNavPersist = useRef(true);
   const journalBalancedRef = useRef(false);
   const journalConfettiTimerRef = useRef<number | null>(null);
+  const flashcardAgainRef = useRef(false);
 
   // Load settings and stats from localStorage
   useEffect(() => {
@@ -931,12 +947,16 @@ export function StudyMode({ theme }: StudyModeProps) {
           const parsed = JSON.parse(savedSettings) as Partial<StudySettings>;
           const mpc = parsed.matchPairCount;
           const pairOk = mpc === 4 || mpc === 6 || mpc === 8;
+          const sf = parsed.standardsFocus;
+          const standardsFocus: StandardsFocus =
+            sf === "ifrs" || sf === "both" || sf === "gaap" ? sf : defaultSettings.standardsFocus;
           setSettings({
             ...defaultSettings,
             ...parsed,
             matchPairCount: pairOk ? mpc : defaultSettings.matchPairCount,
             caseFeedbackStyle:
               parsed.caseFeedbackStyle === "exam" ? "exam" : "coaching",
+            standardsFocus,
           });
         } catch {
           /* ignore */
@@ -1086,7 +1106,7 @@ export function StudyMode({ theme }: StudyModeProps) {
 
   // Timer for timed mode
   useEffect(() => {
-    if (!settings.timedMode || !quizTopic || showResult || loading || quizComplete) {
+    if ((!settings.timedMode && !quizTimedOverride) || !quizTopic || showResult || loading || quizComplete) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -1122,7 +1142,16 @@ export function StudyMode({ theme }: StudyModeProps) {
         timerRef.current = null;
       }
     };
-  }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
+  }, [
+    settings.timedMode,
+    quizTimedOverride,
+    settings.difficulty,
+    quizTopic,
+    currentQuestionIndex,
+    showResult,
+    loading,
+    quizComplete,
+  ]);
 
   // Shuffle and rotate loading rhythm: even tick = text+emoji, odd = GIF
   useEffect(() => {
@@ -1166,60 +1195,73 @@ export function StudyMode({ theme }: StudyModeProps) {
 
   const [isFlipped, setIsFlipped] = useState(false);
 
-  const fetchQuiz = useCallback(async (topic: string) => {
-    setLoading(true);
-    setSessionFocusTopic(topic);
-    setQuizTopic(topic);
-    setQuizQuestions([]);
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer(null);
-    setShowResult(false);
-    setScore(0);
-    setQuizComplete(false);
-    setQuizMistakes([]);
+  const fetchQuiz = useCallback(
+    async (topic: string) => {
+      setLoading(true);
+      setQuizFetchError(null);
+      setSessionFocusTopic(topic);
+      setQuizTopic(topic);
+      setQuizQuestions([]);
+      setCurrentQuestionIndex(0);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setScore(0);
+      setQuizComplete(false);
+      setQuizMistakes([]);
 
-    try {
-      const res = await fetch("/api/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-      });
-      if (res.ok) {
-        const data = await res.json();
+      try {
+        const res = await fetch("/api/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, standardsFocus: settings.standardsFocus }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { questions?: QuizQuestion[]; error?: string };
+        if (!res.ok) {
+          setQuizFetchError(typeof data.error === "string" ? data.error : "Could not load this quiz. Try again.");
+          setQuizQuestions([]);
+          return;
+        }
         setQuizQuestions(data.questions || []);
+      } catch (e) {
+        console.error(e);
+        setQuizFetchError("Network hiccup. Check your connection and try again.");
+        setQuizQuestions([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [settings.standardsFocus]
+  );
 
-  const fetchFlashcards = useCallback(async (topic: string) => {
-    setLoading(true);
-    setSessionFocusTopic(topic);
-    setFlashcardTopic(topic);
-    setFlashcards([]);
-    setCurrentCardIndex(0);
-    setIsFlipped(false);
-    setFlashcardHardQueue([]);
+  const fetchFlashcards = useCallback(
+    async (topic: string) => {
+      setLoading(true);
+      setSessionFocusTopic(topic);
+      setFlashcardTopic(topic);
+      setFlashcards([]);
+      setCurrentCardIndex(0);
+      setIsFlipped(false);
+      setFlashcardHardQueue([]);
 
-    try {
-      const res = await fetch("/api/flashcards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setFlashcards(data.flashcards || []);
+      try {
+        const res = await fetch("/api/flashcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, standardsFocus: settings.standardsFocus }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const raw: Flashcard[] = data.flashcards || [];
+          setFlashcards(sortFlashcardsForReview(topic, raw));
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    [settings.standardsFocus]
+  );
 
   const fetchMatchRound = useCallback(
     async (topic: string) => {
@@ -1248,7 +1290,11 @@ export function StudyMode({ theme }: StudyModeProps) {
         const res = await fetch("/api/flashcards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, forMatch: true }),
+          body: JSON.stringify({
+            topic,
+            forMatch: true,
+            standardsFocus: settings.standardsFocus,
+          }),
         });
         if (!res.ok) throw new Error("fetch failed");
         const data = await res.json();
@@ -1266,7 +1312,7 @@ export function StudyMode({ theme }: StudyModeProps) {
         setMatchLoading(false);
       }
     },
-    [settings.matchPairCount]
+    [settings.matchPairCount, settings.standardsFocus]
   );
 
   const fetchCaseStudy = useCallback(
@@ -1298,7 +1344,9 @@ export function StudyMode({ theme }: StudyModeProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            continuation ? { topic, continuationFrom: continuation } : { topic }
+            continuation
+              ? { topic, standardsFocus: settings.standardsFocus, continuationFrom: continuation }
+              : { topic, standardsFocus: settings.standardsFocus }
           ),
         });
         const data = await res.json().catch(() => ({}));
@@ -1319,8 +1367,17 @@ export function StudyMode({ theme }: StudyModeProps) {
         setCaseStudyLoading(false);
       }
     },
-    []
+    [settings.standardsFocus]
   );
+
+  const startExamSprint = useCallback(() => {
+    const names = QUIZ_TOPICS.map((t) => t.name);
+    const topic = names[Math.floor(Math.random() * names.length)]!;
+    setStudySection("practice");
+    setDrillTab("quiz");
+    setQuizTimedOverride(true);
+    void fetchQuiz(topic);
+  }, [fetchQuiz]);
 
   const resetCaseStudy = () => {
     setCaseStudyTopic(null);
@@ -1674,13 +1731,14 @@ export function StudyMode({ theme }: StudyModeProps) {
       setShowResult(false);
       setTimeRanOut(false);
       // Reset timer for next question
-      if (settings.timedMode) {
+      if (settings.timedMode || quizTimedOverride) {
         setTimeLeft(DIFFICULTY_CONFIG[settings.difficulty].time);
       }
     } else {
       // Quiz complete
       playSound("complete", settings.soundEnabled);
       setQuizComplete(true);
+      setQuizTimedOverride(false);
       setStudyDays(recordStudyDayInStorage(STUDY_ACTIVITY_KEY));
 
       if (!settings.quizPracticeMode) {
@@ -1716,6 +1774,8 @@ export function StudyMode({ theme }: StudyModeProps) {
     setStreak(0);
     setMaxStreak(0);
     setTimeLeft(null);
+    setQuizTimedOverride(false);
+    setQuizFetchError(null);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -1723,11 +1783,18 @@ export function StudyMode({ theme }: StudyModeProps) {
   };
 
   const flashcardMarkAgain = () => {
+    flashcardAgainRef.current = true;
     setFlashcardHardQueue((q) => (q.includes(currentCardIndex) ? q : [...q, currentCardIndex]));
     playSound("tick", settings.soundEnabled);
   };
 
   const advanceFlashcard = () => {
+    const card = flashcards[currentCardIndex];
+    if (card && flashcardTopic) {
+      recordFlashcardReview(flashcardTopic, card.front, flashcardAgainRef.current);
+    }
+    flashcardAgainRef.current = false;
+
     if (currentCardIndex < flashcards.length - 1) {
       setCurrentCardIndex((i) => i + 1);
       setIsFlipped(false);
@@ -1861,6 +1928,36 @@ export function StudyMode({ theme }: StudyModeProps) {
     }
   }, [journalDateStr, journalMemo, journalEntries]);
 
+  const exportJournalPdf = useCallback(() => {
+    const td = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.debit), 0);
+    const tc = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.credit), 0);
+    const lines: string[] = ["Journal practice (Accountant's Companion)", ""];
+    if (journalDateStr.trim()) lines.push(`Date: ${journalDateStr.trim()}`);
+    if (journalMemo.trim()) lines.push(`Memo: ${journalMemo.trim()}`);
+    if (journalDateStr.trim() || journalMemo.trim()) lines.push("");
+    lines.push("Account  Debit  Credit");
+    journalEntries.forEach((e) => {
+      lines.push(`${e.account || "-"}  ${e.debit || ""}  ${e.credit || ""}`);
+    });
+    lines.push("");
+    lines.push(`Totals  Dr ${td.toFixed(2)}  Cr ${tc.toFixed(2)}`);
+    const doc = new jsPDF();
+    doc.setFontSize(10);
+    const body = lines.join("\n");
+    const split = doc.splitTextToSize(body, 180);
+    let y = 14;
+    for (const line of split) {
+      if (y > 285) {
+        doc.addPage();
+        y = 14;
+      }
+      doc.text(line, 14, y);
+      y += 5;
+    }
+    const slug = (journalDateStr.trim() || "entry").replace(/\//g, "-").replace(/\s+/g, "_");
+    doc.save(`journal-${slug}.pdf`);
+  }, [journalDateStr, journalMemo, journalEntries]);
+
   const focusQuickQuizTopic = matchTopicFromFocus(sessionFocusTopic, QUIZ_TOPICS.map((t) => t.name));
   const focusQuickFlashTopic = matchTopicFromFocus(sessionFocusTopic, FLASHCARD_TOPICS.map((t) => t.name));
   const focusQuickMatchTopic = matchTopicFromFocus(sessionFocusTopic, MATCH_TOPICS.map((t) => t.name));
@@ -1907,6 +2004,46 @@ export function StudyMode({ theme }: StudyModeProps) {
   const gradedAccuracyPct =
     gradedAnswerTotal > 0 ? Math.round((gradedAnswerCorrect / gradedAnswerTotal) * 100) : null;
   const studyStreak = computeStudyStreak(studyDays);
+  const weakTopicHints = weakTopicsFromStats(stats.topicStats, { minAttempts: 3, limit: 4 });
+
+  const readMatchPersonalBestSec = useCallback(
+    (topicName: string) => {
+      try {
+        const raw = localStorage.getItem(MATCH_BEST_TIME_KEY);
+        const map = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+        const v = map[`${topicName}:${settings.matchPairCount}`];
+        return typeof v === "number" ? v : null;
+      } catch {
+        return null;
+      }
+    },
+    [settings.matchPairCount]
+  );
+
+  useEffect(() => {
+    if (!sessionFocusTopic) return;
+    persistChatStudyContext({
+      topic: sessionFocusTopic,
+      area: activeTab,
+      standards: settings.standardsFocus,
+    });
+  }, [sessionFocusTopic, activeTab, settings.standardsFocus]);
+
+  useEffect(() => {
+    const msg = consumeMilestoneToasts(stats, studyStreak);
+    if (!msg) return;
+    setMilestoneToast(msg);
+    const t = window.setTimeout(() => setMilestoneToast(null), 5200);
+    return () => window.clearTimeout(t);
+  }, [
+    stats.totalQuizzes,
+    stats.totalFlashcards,
+    stats.caseStudyCompleted,
+    stats.bestStreak,
+    stats.totalQuestions,
+    stats.caseStudyQuestionCount,
+    studyStreak,
+  ]);
 
   const handleMatchTileClick = (tile: MatchTile) => {
     if (matchMatched.has(tile.pairId) || matchComplete) return;
@@ -2324,6 +2461,37 @@ export function StudyMode({ theme }: StudyModeProps) {
 
                       <div className="flex flex-col gap-1.5 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex items-center gap-2 sm:gap-3">
+                          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">Quiz, case, cards framing</span>
+                        </div>
+                        <div
+                          role="group"
+                          aria-label="Accounting standards emphasis"
+                          className={cn(
+                            "grid w-full shrink-0 grid-cols-3 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
+                            "bg-muted"
+                          )}
+                        >
+                          {(["gaap", "ifrs", "both"] as const).map((f) => (
+                            <button
+                              key={f}
+                              type="button"
+                              onClick={() => updateSettings({ standardsFocus: f })}
+                              className={cn(
+                                "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
+                                settings.standardsFocus === f
+                                  ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              {f === "gaap" ? "US GAAP" : f === "ifrs" ? "IFRS" : "Both"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="text-sm font-medium">Case written feedback</span>
                         </div>
@@ -2630,6 +2798,44 @@ export function StudyMode({ theme }: StudyModeProps) {
                         Finish a scored quiz or case to unlock your combined accuracy bar.
                       </p>
                     )}
+                    {weakTopicHints.length > 0 ? (
+                      <div
+                        className={cn(
+                          "mt-4 rounded-2xl border p-3",
+                          theme === "dark" ? "border-violet-500/25 bg-violet-950/20" : "border-violet-200/70 bg-violet-50/50"
+                        )}
+                      >
+                        <p className="text-xs font-semibold text-foreground">Topics to review soon</p>
+                        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                          These have lower accuracy after at least three scored attempts. Open a quiz to drill them.
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {weakTopicHints.map((w) => (
+                            <button
+                              key={w.topic}
+                              type="button"
+                              onClick={() => {
+                                setShowStats(false);
+                                setStudySection("practice");
+                                setDrillTab("quiz");
+                                void fetchQuiz(w.topic);
+                              }}
+                              className={cn(
+                                "max-w-full rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition-colors",
+                                theme === "dark"
+                                  ? "border-white/10 bg-white/5 hover:bg-white/10"
+                                  : "border-border/60 bg-card/80 hover:bg-white"
+                              )}
+                            >
+                              <span className="line-clamp-2">{w.topic}</span>
+                              <span className="mt-0.5 block tabular-nums text-muted-foreground">
+                                {Math.round(w.accuracy * 100)}% · {w.total} tries
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </motion.div>
               )}
@@ -2798,6 +3004,34 @@ export function StudyMode({ theme }: StudyModeProps) {
                           <span className="font-medium text-foreground">Pick a topic</span> (ten questions per run).
                           Open settings for timed mode or practice (no stat save).
                         </p>
+                        {quizFetchError ? (
+                          <div
+                            role="alert"
+                            className={cn(
+                              "mb-4 rounded-xl border px-3 py-2 text-sm",
+                              theme === "dark"
+                                ? "border-red-400/35 bg-red-950/30 text-red-200"
+                                : "border-red-200 bg-red-50 text-red-900"
+                            )}
+                          >
+                            {quizFetchError}
+                          </div>
+                        ) : null}
+                        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full shrink-0 rounded-xl sm:w-auto"
+                            onClick={() => startExamSprint()}
+                          >
+                            <Zap className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                            Exam sprint
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Random topic, timer on for this run only (your timed setting stays as-is).
+                          </p>
+                        </div>
                         {focusQuickQuizTopic ? (
                           <div
                             className={cn(
@@ -2976,7 +3210,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </button>
                             
                             {/* Timer */}
-                            {settings.timedMode && timeLeft !== null && (
+                            {(settings.timedMode || quizTimedOverride) && timeLeft !== null && (
                               <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
@@ -2994,7 +3228,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </motion.div>
                             )}
                             
-                            {!settings.timedMode && (
+                            {!settings.timedMode && !quizTimedOverride && (
                               <span className="text-muted-foreground">
                                 <span className="font-medium text-foreground">{currentQuestionIndex + 1}</span> of {quizQuestions.length}
                               </span>
@@ -3026,6 +3260,11 @@ export function StudyMode({ theme }: StudyModeProps) {
                               {settings.quizPracticeMode ? (
                                 <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
                                   Practice
+                                </span>
+                              ) : null}
+                              {quizTimedOverride ? (
+                                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                                  Timed sprint
                                 </span>
                               ) : null}
                             </div>
@@ -3527,6 +3766,19 @@ export function StudyMode({ theme }: StudyModeProps) {
                               {Math.round((caseStudyScore / caseStudyPayload.questions.length) * 100)}% correct on
                               multiple choice
                             </p>
+                            {caseMcqMistakes.length > 0 ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-3 rounded-xl"
+                                onClick={() =>
+                                  document.getElementById("case-mcq-review")?.scrollIntoView({ behavior: "smooth" })
+                                }
+                              >
+                                Jump to missed questions
+                              </Button>
+                            ) : null}
                             {caseStudyPayload.writtenExercises && caseStudyPayload.writtenExercises.length > 0 ? (
                               <p className="mt-1 text-xs text-muted-foreground/80">
                                 Written exercises are practice only and are not included in this score.
@@ -3562,7 +3814,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </div>
                             )}
                           {caseMcqMistakes.length > 0 ? (
-                            <div className="mt-4 w-full text-left">
+                            <div id="case-mcq-review" className="mt-4 w-full scroll-mt-24 text-left">
                               <p className="mb-2 text-sm font-semibold">Multiple-choice review</p>
                               <div className="max-h-52 space-y-3 overflow-y-auto rounded-xl border border-border/60 p-3 text-sm">
                                 {caseMcqMistakes.map((m, idx) => {
@@ -3880,8 +4132,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <span className="text-2xl">{topic.icon}</span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
-                                <p className="text-xs text-muted-foreground">New cards each time you open a topic. Deck
-                                  length varies.</p>
+                                <p className="text-xs text-muted-foreground">
+                                  New cards each time you open a topic. Cards you are due to review sort to the front.
+                                </p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </button>
@@ -4084,28 +4337,32 @@ export function StudyMode({ theme }: StudyModeProps) {
                           </div>
                         ) : null}
                         <div className="space-y-3">
-                          {MATCH_TOPICS.map((topic) => (
-                            <button
-                              key={topic.name}
-                              type="button"
-                              onClick={() => fetchMatchRound(topic.name)}
-                              className={cn(
-                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors duration-200",
-                                theme === "dark"
-                                  ? "border-white/10 bg-card/60 hover:border-violet-400/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
-                                  : "border-border/60 bg-card/80 hover:border-violet-500/35 hover:bg-white hover:shadow-md hover:shadow-violet-950/10"
-                              )}
-                            >
-                              <span className="text-2xl">{topic.icon}</span>
-                              <div className="flex-1">
-                                <p className="font-medium">{topic.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Up to {settings.matchPairCount} pairs per round
-                                </p>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                            </button>
-                          ))}
+                          {MATCH_TOPICS.map((topic) => {
+                            const pbSec = readMatchPersonalBestSec(topic.name);
+                            return (
+                              <button
+                                key={topic.name}
+                                type="button"
+                                onClick={() => fetchMatchRound(topic.name)}
+                                className={cn(
+                                  "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors duration-200",
+                                  theme === "dark"
+                                    ? "border-white/10 bg-card/60 hover:border-violet-400/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
+                                    : "border-border/60 bg-card/80 hover:border-violet-500/35 hover:bg-white hover:shadow-md hover:shadow-violet-950/10"
+                                )}
+                              >
+                                <span className="text-2xl">{topic.icon}</span>
+                                <div className="flex-1">
+                                  <p className="font-medium">{topic.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Up to {settings.matchPairCount} pairs per round
+                                    {typeof pbSec === "number" ? ` · Best ${pbSec}s` : ""}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : matchLoading ? (
@@ -4284,6 +4541,16 @@ export function StudyMode({ theme }: StudyModeProps) {
                         >
                           <Copy className="mr-1 h-3.5 w-3.5" />
                           {journalCopied ? "Copied" : "Copy"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={() => exportJournalPdf()}
+                        >
+                          <Download className="mr-1 h-3.5 w-3.5" />
+                          PDF
                         </Button>
                         <button
                           type="button"
@@ -4693,6 +4960,20 @@ export function StudyMode({ theme }: StudyModeProps) {
                 )}
               </AnimatePresence>
             </div>
+            {milestoneToast ? (
+              <div
+                role="status"
+                className={cn(
+                  "pointer-events-none fixed bottom-4 left-1/2 z-[200] max-w-sm -translate-x-1/2 rounded-2xl border px-4 py-3 text-center text-sm shadow-lg",
+                  theme === "dark"
+                    ? "border-emerald-500/30 bg-emerald-950/95 text-emerald-50"
+                    : "border-emerald-200 bg-white text-emerald-950 shadow-emerald-900/10"
+                )}
+              >
+                <Sparkles className="mr-1.5 inline h-3.5 w-3.5 align-text-bottom text-amber-400" aria-hidden />
+                {milestoneToast}
+              </div>
+            ) : null}
           </motion.div>
   );
 }

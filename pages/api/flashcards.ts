@@ -1,10 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import OpenAI from "openai";
+import { parseStandardsFocus, standardsUserInstruction } from "@/lib/standards-prompt";
 
 const openai = new OpenAI();
 
 type FlashcardsRequestBody = {
   topic?: string;
+  standardsFocus?: unknown;
   /** When true, backs are written for a term↔definition match game: no spoilers on the back. */
   forMatch?: boolean;
 };
@@ -27,7 +29,7 @@ Back ("back"): follow ALL of these:
 
 Keep each back under ~220 characters when possible.`;
 
-const generateBatch = async (topic: string, batchNum: number, forMatch: boolean) => {
+const generateBatch = async (topic: string, batchNum: number, forMatch: boolean, framing: string) => {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -39,8 +41,8 @@ const generateBatch = async (topic: string, batchNum: number, forMatch: boolean)
       {
         role: "user",
         content: forMatch
-          ? `Topic/theme: ${topic}\nGenerate pairs suitable for matching practice on this topic.`
-          : topic,
+          ? `Topic/theme: ${topic}\n${framing}\nGenerate pairs suitable for matching practice on this topic.`
+          : `${topic}\n\n${framing}`,
       },
     ],
     temperature: forMatch ? 0.75 : 0.9,
@@ -57,6 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as FlashcardsRequestBody;
   const { topic, forMatch } = body;
+  const framing = standardsUserInstruction(parseStandardsFocus(body.standardsFocus));
 
   if (!topic) {
     return res.status(400).json({ error: "Topic is required" });
@@ -66,8 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const [batch1, batch2] = await Promise.all([
-      generateBatch(topic, 1, matchMode),
-      generateBatch(topic, 2, matchMode),
+      generateBatch(topic, 1, matchMode, framing),
+      generateBatch(topic, 2, matchMode, framing),
     ]);
 
     return res.status(200).json({ flashcards: [...batch1, ...batch2] });

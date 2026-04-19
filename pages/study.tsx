@@ -75,7 +75,7 @@ export default function StudyPage() {
             <div className="absolute left-1/3 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-teal-200/20 blur-3xl" />
           </div>
         )}
-        <StudyChromeHeader theme={theme} onToggleTheme={toggleTheme} />
+        <StudyChromeHeader theme={theme} onToggleTheme={toggleTheme} active="study" />
         <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-1 flex-col px-3 py-3 sm:px-5 sm:py-5 md:px-6 md:py-6">
             <StudyMode theme={theme} />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +23,7 @@ import {
   Mic,
   MicOff,
   BookOpen,
+  Wrench,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import { RatingModal } from "@/components/rating-modal";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { CalculatorWidget } from "@/components/calculator-widget";
 import { cn } from "@/lib/utils";
+import { readChatStudyContext } from "@/lib/study-extras";
 
 const STORAGE_KEY = "accountants-companion-v2";
 const RATING_KEY = "accountants-companion-rated";
@@ -795,6 +798,8 @@ export default function Home() {
     try {
       const historyForApi = toApiMessages(newMessages);
 
+      const studyContext = typeof window !== "undefined" ? readChatStudyContext() : null;
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -802,6 +807,7 @@ export default function Home() {
           stream: true,
           messages: historyForApi.slice(0, -1),
           message: trimmed,
+          ...(studyContext ? { studyContext } : {}),
         }),
         signal: controller.signal,
       });
@@ -996,6 +1002,20 @@ export default function Home() {
                 <BookOpen className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
                 <span className="pr-0.5">Study</span>
               </motion.button>
+
+              <Link
+                href="/tools"
+                className={cn(
+                  "flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold ring-1 transition-colors sm:px-4",
+                  theme === "dark"
+                    ? "bg-white/10 text-white ring-white/15 hover:bg-white/15"
+                    : "border border-border/60 bg-card text-foreground shadow-sm ring-black/[0.04] hover:bg-muted"
+                )}
+                title="Calculators and quick utilities"
+              >
+                <Wrench className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="hidden pr-0.5 sm:inline">Tools</span>
+              </Link>
 
               {/* Divider */}
               <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-border")} />

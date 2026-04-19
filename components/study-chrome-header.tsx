@@ -1,19 +1,23 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles, Moon, Sun, MessageSquare } from "lucide-react";
+import { Sparkles, Moon, Sun, MessageSquare, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Theme = "light" | "dark";
 
+export type SiteChromeNav = "chat" | "study" | "tools";
+
 /**
- * Top bar aligned with the chat app header, used on the full-page Study route.
+ * Top bar aligned with the chat app header, used on Study and Tools routes.
  */
 export function StudyChromeHeader({
   theme,
   onToggleTheme,
+  active = "study",
 }: {
   theme: Theme;
   onToggleTheme: () => void;
+  active?: SiteChromeNav;
 }) {
   return (
     <header
@@ -47,21 +51,59 @@ export function StudyChromeHeader({
           </div>
         </Link>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
           <Link
             href="/"
             className={cn(
               "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
-              theme === "dark"
-                ? "bg-white/10 text-white hover:bg-white/15"
-                : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
+              active === "chat"
+                ? theme === "dark"
+                  ? "bg-emerald-500/25 text-emerald-100 ring-1 ring-emerald-400/30"
+                  : "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/60"
+                : theme === "dark"
+                  ? "bg-white/10 text-white hover:bg-white/15"
+                  : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
             )}
           >
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">Chat</span>
           </Link>
 
-          <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-border")} />
+          <Link
+            href="/study"
+            className={cn(
+              "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
+              active === "study"
+                ? theme === "dark"
+                  ? "bg-emerald-500/25 text-emerald-100 ring-1 ring-emerald-400/30"
+                  : "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300/60"
+                : theme === "dark"
+                  ? "bg-white/10 text-white hover:bg-white/15"
+                  : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
+            )}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">Study</span>
+          </Link>
+
+          <Link
+            href="/tools"
+            className={cn(
+              "flex h-9 items-center gap-2 rounded-xl px-3.5 text-sm font-medium transition-all",
+              active === "tools"
+                ? theme === "dark"
+                  ? "bg-sky-500/25 text-sky-100 ring-1 ring-sky-400/30"
+                  : "bg-sky-100 text-sky-900 ring-1 ring-sky-300/60"
+                : theme === "dark"
+                  ? "bg-white/10 text-white hover:bg-white/15"
+                  : "border border-border/60 bg-card text-foreground shadow-sm hover:bg-muted"
+            )}
+          >
+            <Wrench className="h-4 w-4" />
+            <span className="hidden sm:inline">Tools</span>
+          </Link>
+
+          <div className={cn("mx-1 hidden h-5 w-px sm:block", theme === "dark" ? "bg-white/10" : "bg-border")} />
 
           <motion.button
             type="button"

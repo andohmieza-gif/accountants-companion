@@ -19,10 +19,13 @@ type CalculatorMode =
 
 interface CalculatorWidgetProps {
   theme: "light" | "dark";
+  /** Inline full-width panel for Tools hub (no floating button or modal backdrop). */
+  variant?: "floating" | "embedded";
 }
 
-export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function CalculatorWidget({ theme, variant = "floating" }: CalculatorWidgetProps) {
+  const isEmbedded = variant === "embedded";
+  const [isOpen, setIsOpen] = useState(isEmbedded);
   const [mode, setMode] = useState<CalculatorMode>("basic");
   const [result, setResult] = useState<string | null>(null);
 
@@ -226,57 +229,67 @@ export function CalculatorWidget({ theme }: CalculatorWidgetProps) {
 
   return (
     <>
-      {/* Floating button */}
-      <motion.button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className={cn(
-          "fixed bottom-32 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors",
-          theme === "dark"
-            ? "bg-foreground text-background hover:bg-foreground/90"
-            : "bg-primary text-primary-foreground hover:bg-primary/90"
-        )}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        title="Calculator"
-      >
-        <Calculator className="h-5 w-5" />
-      </motion.button>
+      {!isEmbedded ? (
+        <motion.button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className={cn(
+            "fixed bottom-32 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors max-[480px]:bottom-24",
+            theme === "dark"
+              ? "bg-foreground text-background hover:bg-foreground/90"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          )}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          title="Calculator"
+        >
+          <Calculator className="h-5 w-5" />
+        </motion.button>
+      ) : null}
 
-      {/* Calculator panel */}
       <AnimatePresence>
-        {isOpen && (
+        {(isOpen || isEmbedded) && (
           <>
+            {!isEmbedded ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 cursor-pointer bg-black/20 backdrop-blur-sm"
+                onClick={() => setIsOpen(false)}
+              />
+            ) : null}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 cursor-pointer bg-black/20 backdrop-blur-sm"
-              onClick={() => setIsOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={isEmbedded ? false : { opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              exit={isEmbedded ? undefined : { opacity: 0, y: 20, scale: 0.95 }}
+              transition={isEmbedded ? undefined : { type: "spring", stiffness: 500, damping: 30 }}
               className={cn(
-                "fixed bottom-32 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border shadow-2xl",
+                "overflow-hidden rounded-2xl border shadow-2xl",
+                isEmbedded
+                  ? "relative z-10 w-full max-w-2xl shadow-lg"
+                  : "fixed bottom-32 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] max-[480px]:bottom-24",
                 theme === "dark" ? "border-border/60 bg-card" : "border-border/60 bg-card"
               )}
             >
-              {/* Header */}
               <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Calculator className="h-4 w-4 text-foreground" />
-                  <span className="font-medium">Quick Calculator</span>
+                  <span className="font-medium">{isEmbedded ? "Calculator" : "Quick Calculator"}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {!isEmbedded ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Tools hub
+                  </span>
+                )}
               </div>
 
               {/* Mode selector */}

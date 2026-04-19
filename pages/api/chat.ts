@@ -35,6 +35,8 @@ type ChatRequestBody = {
   message?: string;
   messages?: unknown;
   stream?: boolean;
+  /** Optional one-liner from Study (last focus topic); keep short. */
+  studyContext?: unknown;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -44,6 +46,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as ChatRequestBody;
   const { message, messages: historyMessages, stream: wantStream } = body;
+  const studyCtx =
+    typeof body.studyContext === "string" && body.studyContext.trim().length > 0
+      ? body.studyContext.trim().slice(0, 600)
+      : null;
   const latest =
     typeof message === "string" && message.trim().length > 0 ? message.trim() : null;
   const normalized = normalizeMessages(historyMessages);
@@ -52,8 +58,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "Message is required" });
   }
 
+  const systemWithStudy =
+    SYSTEM_PROMPT +
+    (studyCtx
+      ? `\n\nOptional context from the learner's study session on this device (may be stale): ${studyCtx}`
+      : "");
+
   const openaiMessages: ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemWithStudy },
     ...normalized,
     ...(latest ? [{ role: "user" as const, content: latest }] : []),
   ];

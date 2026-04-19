@@ -1,10 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import OpenAI from "openai";
+import { parseStandardsFocus, standardsUserInstruction } from "@/lib/standards-prompt";
 
 const openai = new OpenAI();
 
 type CaseStudyRequestBody = {
   topic?: string;
+  standardsFocus?: unknown;
   /** Optional: continue with a follow-on chapter for the same entity and fact pattern. */
   continuationFrom?: {
     title?: string;
@@ -62,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as CaseStudyRequestBody;
   const { topic, continuationFrom } = body;
+  const framing = standardsUserInstruction(parseStandardsFocus(body.standardsFocus));
 
   if (!topic) {
     return res.status(400).json({ error: "Topic is required" });
@@ -89,6 +92,8 @@ ${(cont.scenario ?? "").slice(0, 12000)}
 Return fresh multiple-choice questions and exercises that depend on BOTH prior and new facts.`
       : `Topic / theme for this case study: ${topic}\n\nVary the fact pattern so it does not resemble generic textbook examples.`;
 
+  const userContentWithFraming = `${userContent}\n\n${framing}`;
+
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -97,7 +102,7 @@ Return fresh multiple-choice questions and exercises that depend on BOTH prior a
         { role: "system", content: SYSTEM },
         {
           role: "user",
-          content: userContent,
+          content: userContentWithFraming,
         },
       ],
       temperature: 0.85,
