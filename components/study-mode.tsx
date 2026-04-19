@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
   Brain,
@@ -26,12 +26,12 @@ import {
   Clock,
   BarChart3,
   Settings,
-  Star,
   Link2,
   Briefcase,
   PenLine,
   Copy,
   Crosshair,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -183,30 +183,82 @@ const DIFFICULTY_CONFIG = {
   hard: { time: 15, label: "Hard", color: "text-red-500" },
 };
 
-// Confetti component
-function Confetti({ active }: { active: boolean }) {
-  if (!active) return null;
-  
-  const particles = Array.from({ length: 50 }, (_, i) => ({
+// Confetti — skips when user prefers reduced motion; `subtle` for small wins (e.g. journal balanced)
+function Confetti({
+  active,
+  reducedMotion,
+  subtle,
+}: {
+  active: boolean;
+  reducedMotion?: boolean | null;
+  subtle?: boolean;
+}) {
+  if (!active || reducedMotion) return null;
+
+  const count = subtle ? 32 : 52;
+  const particles = Array.from({ length: count }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
-    delay: Math.random() * 0.5,
-    duration: 1 + Math.random() * 1,
-    color: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6'][Math.floor(Math.random() * 5)],
+    delay: Math.random() * 0.45,
+    duration: 0.85 + Math.random() * 1.1,
+    color: ["#10b981", "#34d399", "#f59e0b", "#3b82f6", "#ec4899", "#8b5cf6", "#22d3ee"][
+      Math.floor(Math.random() * 7)
+    ],
+    size: subtle ? 2 + Math.random() * 2 : 2.5 + Math.random() * 2.5,
   }));
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+    <div className="pointer-events-none fixed inset-0 z-[100] overflow-hidden">
       {particles.map((p) => (
         <motion.div
           key={p.id}
-          initial={{ y: -20, x: `${p.x}vw`, opacity: 1, scale: 1 }}
-          animate={{ y: '100vh', opacity: 0, scale: 0, rotate: 360 * (Math.random() > 0.5 ? 1 : -1) }}
-          transition={{ duration: p.duration, delay: p.delay, ease: 'linear' }}
-          className="absolute h-3 w-3 rounded-full"
-          style={{ backgroundColor: p.color }}
+          initial={{ y: -24, x: `${p.x}vw`, opacity: 1, scale: 1 }}
+          animate={{
+            y: "100vh",
+            opacity: 0,
+            scale: 0,
+            rotate: 360 * (Math.random() > 0.5 ? 1 : -1),
+          }}
+          transition={{ duration: p.duration, delay: p.delay, ease: "linear" }}
+          className="absolute rounded-full shadow-sm"
+          style={{ backgroundColor: p.color, width: p.size, height: p.size }}
         />
       ))}
+    </div>
+  );
+}
+
+function StudyAmbientLayer({ theme, reducedMotion }: { theme: "light" | "dark"; reducedMotion: boolean | null }) {
+  if (reducedMotion) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
+      <motion.div
+        aria-hidden
+        className={cn(
+          "absolute -left-[20%] -top-[30%] h-[min(24rem,55vh)] w-[min(24rem,55vw)] rounded-full blur-3xl",
+          theme === "dark" ? "bg-emerald-500/12" : "bg-emerald-400/20"
+        )}
+        animate={{ opacity: [0.35, 0.65, 0.35], scale: [1, 1.08, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        aria-hidden
+        className={cn(
+          "absolute -bottom-[25%] -right-[15%] h-[min(22rem,50vh)] w-[min(22rem,50vw)] rounded-full blur-3xl",
+          theme === "dark" ? "bg-violet-500/10" : "bg-sky-400/18"
+        )}
+        animate={{ opacity: [0.25, 0.5, 0.25], scale: [1.05, 1, 1.05] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+      />
+      <motion.div
+        aria-hidden
+        className={cn(
+          "absolute left-1/2 top-1/3 h-40 w-40 -translate-x-1/2 rounded-full blur-2xl",
+          theme === "dark" ? "bg-cyan-500/8" : "bg-teal-300/15"
+        )}
+        animate={{ opacity: [0.2, 0.45, 0.2] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+      />
     </div>
   );
 }
@@ -594,11 +646,42 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [pendingCaseDraft, setPendingCaseDraft] = useState<CaseDraftV1 | null>(null);
   /** Last topic the learner explicitly started (quiz, case, cards, or match). */
   const [sessionFocusTopic, setSessionFocusTopic] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [journalConfetti, setJournalConfetti] = useState(false);
+
+  const reduceMotion = useReducedMotion();
+  const topicStagger = useMemo(() => {
+    if (reduceMotion) {
+      return {
+        container: { hidden: {}, show: { transition: { staggerChildren: 0 } } } as const,
+        item: { hidden: {}, show: {} } as const,
+      };
+    }
+    return {
+      container: {
+        hidden: { opacity: 0 },
+        show: {
+          opacity: 1,
+          transition: { staggerChildren: 0.055, delayChildren: 0.06 },
+        },
+      } as const,
+      item: {
+        hidden: { opacity: 0, y: 14 },
+        show: {
+          opacity: 1,
+          y: 0,
+          transition: { type: "spring" as const, stiffness: 400, damping: 28 },
+        },
+      } as const,
+    };
+  }, [reduceMotion]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const matchTickRef = useRef<NodeJS.Timeout | null>(null);
   const caseDraftSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const skipFirstNavPersist = useRef(true);
+  const journalBalancedRef = useRef(false);
+  const journalConfettiTimerRef = useRef<number | null>(null);
 
   // Load settings and stats from localStorage
   useEffect(() => {
@@ -1539,6 +1622,33 @@ export function StudyMode({ theme }: StudyModeProps) {
   const focusQuickFlashTopic = matchTopicFromFocus(sessionFocusTopic, FLASHCARD_TOPICS.map((t) => t.name));
   const focusQuickMatchTopic = matchTopicFromFocus(sessionFocusTopic, MATCH_TOPICS.map((t) => t.name));
 
+  useEffect(() => {
+    const ok = isBalanced && !journalHasInvalidRows && activeTab === "journal";
+    if (ok && !journalBalancedRef.current) {
+      journalBalancedRef.current = true;
+      if (!reduceMotion) setJournalConfetti(true);
+      playSound("complete", settings.soundEnabled);
+      if (journalConfettiTimerRef.current) window.clearTimeout(journalConfettiTimerRef.current);
+      journalConfettiTimerRef.current = window.setTimeout(() => {
+        setJournalConfetti(false);
+        journalConfettiTimerRef.current = null;
+      }, 2000);
+    }
+    if (!ok) journalBalancedRef.current = false;
+    return () => {
+      if (journalConfettiTimerRef.current) {
+        window.clearTimeout(journalConfettiTimerRef.current);
+        journalConfettiTimerRef.current = null;
+      }
+    };
+  }, [
+    isBalanced,
+    journalHasInvalidRows,
+    activeTab,
+    reduceMotion,
+    settings.soundEnabled,
+  ]);
+
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const currentCard = flashcards[currentCardIndex];
   const currentCaseStudyQ = caseStudyPayload?.questions[caseStudyQIndex];
@@ -1634,10 +1744,11 @@ export function StudyMode({ theme }: StudyModeProps) {
                 : "border-border/55 bg-card/92 shadow-emerald-950/[0.07] ring-black/[0.05] backdrop-blur-2xl"
             )}
           >
+            <StudyAmbientLayer theme={theme} reducedMotion={reduceMotion} />
             {/* Header */}
             <div
               className={cn(
-                "flex shrink-0 items-center justify-between border-b px-4 py-3.5 sm:px-6 sm:py-4",
+                "relative z-10 flex shrink-0 items-center justify-between border-b px-4 py-3.5 sm:px-6 sm:py-4",
                 theme === "dark"
                   ? "border-white/5 bg-gradient-to-r from-emerald-950/15 via-transparent to-sky-950/10"
                   : "border-border/45 bg-gradient-to-r from-emerald-50/40 via-transparent to-sky-50/35"
@@ -1698,6 +1809,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   onClick={() => {
                     setShowStats(!showStats);
                     setShowSettings(false);
+                    setShowShortcuts(false);
                   }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
@@ -1715,8 +1827,29 @@ export function StudyMode({ theme }: StudyModeProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    setShowShortcuts((s) => !s);
+                    setShowStats(false);
+                    setShowSettings(false);
+                  }}
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
+                    showShortcuts
+                      ? theme === "dark"
+                        ? "bg-white/10 text-foreground shadow-inner"
+                        : "bg-white text-foreground shadow-sm ring-1 ring-border/40"
+                      : "text-muted-foreground hover:bg-background/90 hover:text-foreground"
+                  )}
+                  title="Keyboard shortcuts"
+                  aria-pressed={showShortcuts}
+                >
+                  <Keyboard className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     setShowSettings(!showSettings);
                     setShowStats(false);
+                    setShowShortcuts(false);
                   }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
@@ -1734,6 +1867,83 @@ export function StudyMode({ theme }: StudyModeProps) {
               </div>
             </div>
 
+            <AnimatePresence initial={false}>
+              {showShortcuts ? (
+                <motion.div
+                  key="shortcuts"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className={cn(
+                    "relative z-10 shrink-0 overflow-hidden border-b",
+                    theme === "dark" ? "border-white/10 bg-black/25" : "border-border/40 bg-muted/40"
+                  )}
+                >
+                  <div className="px-4 py-3 sm:px-6 sm:py-4">
+                    <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden />
+                      Power shortcuts
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="rounded-xl border border-border/50 bg-background/60 p-3 dark:bg-black/20">
+                        <p className="mb-2 text-xs font-semibold text-foreground">Quiz</p>
+                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                          <li>
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>–
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">4</kbd> pick
+                            an answer
+                          </li>
+                          <li>
+                            After reveal:{" "}
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>{" "}
+                            or{" "}
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd>{" "}
+                            next question
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/60 p-3 dark:bg-black/20">
+                        <p className="mb-2 text-xs font-semibold text-foreground">Flashcards</p>
+                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                          <li>
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>{" "}
+                            flip card
+                          </li>
+                          <li>
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">←</kbd>{" "}
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">→</kbd>{" "}
+                            previous / next
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/60 p-3 dark:bg-black/20">
+                        <p className="mb-2 text-xs font-semibold text-foreground">Case study (MCQ)</p>
+                        <ul className="space-y-1.5 text-xs text-muted-foreground">
+                          <li>
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">1</kbd>–
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">4</kbd> select
+                            choice
+                          </li>
+                          <li>
+                            After feedback:{" "}
+                            <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Space</kbd>{" "}
+                            continue
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="rounded-xl border border-border/50 bg-background/60 p-3 dark:bg-black/20">
+                        <p className="mb-2 text-xs font-semibold text-foreground">Match</p>
+                        <p className="text-xs text-muted-foreground">
+                          Click a term, then its definition. Streaks and timers (if on) track in the header.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
             {/* Settings/Stats Panel - Only one shows at a time */}
             <AnimatePresence mode="wait">
               {showSettings && (
@@ -1743,7 +1953,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="shrink-0 overflow-x-hidden border-b border-border/40 bg-muted/20 dark:bg-black/20"
+                  className="relative z-10 shrink-0 overflow-x-hidden border-b border-border/40 bg-muted/20 dark:bg-black/20"
                 >
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1966,7 +2176,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="shrink-0 overflow-hidden border-b border-border/40 bg-muted/15 dark:bg-black/15"
+                  className="relative z-10 shrink-0 overflow-hidden border-b border-border/40 bg-muted/15 dark:bg-black/15"
                 >
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -2060,7 +2270,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             {sessionFocusTopic ? (
               <div
                 className={cn(
-                  "flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-6",
+                  "relative z-10 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-6",
                   theme === "dark"
                     ? "border-emerald-500/15 bg-gradient-to-r from-emerald-950/45 via-emerald-950/20 to-transparent"
                     : "border-emerald-200/55 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-transparent"
@@ -2098,7 +2308,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             <nav
               aria-label="Study area"
               className={cn(
-                "shrink-0 border-b px-2 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3",
+                "relative z-10 shrink-0 border-b px-2 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3",
                 theme === "dark" ? "border-white/5 bg-black/15" : "border-border/40 bg-muted/30"
               )}
             >
@@ -2203,7 +2413,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             </nav>
 
             {/* Content: min-h-0 so this region scrolls instead of clipping header/settings */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7">
+            <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7">
               <AnimatePresence mode="wait">
                 {/* Quiz Tab */}
                 {activeTab === "quiz" && (
@@ -2247,10 +2457,16 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <motion.div
+                          className="grid gap-3 sm:grid-cols-2"
+                          variants={topicStagger.container}
+                          initial="hidden"
+                          animate="show"
+                        >
                           {QUIZ_TOPICS.map((topic) => (
                             <motion.button
                               key={topic.name}
+                              variants={topicStagger.item}
                               onClick={() => fetchQuiz(topic.name)}
                               className={cn(
                                 "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
@@ -2268,7 +2484,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
                           ))}
-                        </div>
+                        </motion.div>
                       </div>
                     ) : loading ? (
                       <div
@@ -2310,7 +2526,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                       </div>
                     ) : quizComplete ? (
                       <>
-                        <Confetti active={score >= quizQuestions.length * 0.7} />
+                        <Confetti active={score >= quizQuestions.length * 0.7} reducedMotion={reduceMotion} />
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -2413,9 +2629,21 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </motion.div>
                       </>
                     ) : currentQuestion ? (
-                      <div className={cn(correctFlash && "animate-pulse")}>
+                      <div className="relative">
+                        <AnimatePresence>
+                          {correctFlash && !reduceMotion ? (
+                            <motion.div
+                              key="quiz-correct-glow"
+                              className="pointer-events-none absolute -inset-3 z-0 rounded-3xl bg-gradient-to-r from-emerald-400/30 via-teal-300/25 to-emerald-400/30"
+                              initial={{ opacity: 0.85, scale: 0.96 }}
+                              animate={{ opacity: 0, scale: 1.05 }}
+                              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                            />
+                          ) : null}
+                        </AnimatePresence>
+                        <div className="relative z-10">
                         {/* Confetti for streaks */}
-                        <Confetti active={showConfetti} />
+                        <Confetti active={showConfetti} reducedMotion={reduceMotion} />
                         
                         {/* Progress bar */}
                         <div className="mb-6">
@@ -2457,15 +2685,25 @@ export function StudyMode({ theme }: StudyModeProps) {
                               {/* Streak indicator */}
                               {streak >= 2 && (
                                 <motion.div
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  className="flex items-center gap-1 rounded-full bg-orange-500/10 px-2 py-0.5 text-orange-500"
+                                  key={streak}
+                                  initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ type: "spring", stiffness: 520, damping: 26 }}
+                                  className="flex items-center gap-1 rounded-full bg-orange-500/12 px-2 py-0.5 text-orange-600 shadow-sm dark:text-orange-400"
                                 >
                                   <Flame className="h-3.5 w-3.5" />
-                                  <span className="text-xs font-bold">{streak}</span>
+                                  <span className="text-xs font-bold tabular-nums">{streak}</span>
                                 </motion.div>
                               )}
-                              <span className="font-medium">{score} pts</span>
+                              <motion.span
+                                key={score}
+                                initial={reduceMotion ? false : { scale: 1.35, y: -2 }}
+                                animate={{ scale: 1, y: 0 }}
+                                transition={{ type: "spring", stiffness: 480, damping: 24 }}
+                                className="font-semibold tabular-nums text-foreground"
+                              >
+                                {score} pts
+                              </motion.span>
                               {settings.quizPracticeMode ? (
                                 <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
                                   Practice
@@ -2473,19 +2711,32 @@ export function StudyMode({ theme }: StudyModeProps) {
                               ) : null}
                             </div>
                           </div>
-                          <div className={cn(
-                            "h-2 overflow-hidden rounded-full",
-                            theme === "dark" ? "bg-card" : "bg-muted"
-                          )}>
+                          <div
+                            className={cn(
+                              "relative h-2 overflow-hidden rounded-full ring-1 ring-black/5 dark:ring-white/10",
+                              theme === "dark" ? "bg-card" : "bg-muted"
+                            )}
+                          >
                             <motion.div
                               className={cn(
-                                "h-full rounded-full",
-                                streak >= 3 ? "bg-gradient-to-r from-orange-500 to-amber-500" : "bg-foreground"
+                                "relative h-full overflow-hidden rounded-full",
+                                streak >= 3
+                                  ? "bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500"
+                                  : "bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500"
                               )}
                               initial={{ width: 0 }}
                               animate={{ width: `${progressPercent}%` }}
-                              transition={{ duration: 0.3 }}
-                            />
+                              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                            >
+                              {!reduceMotion ? (
+                                <motion.span
+                                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/35 to-transparent"
+                                  animate={{ x: ["-80%", "180%"] }}
+                                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                                  aria-hidden
+                                />
+                              ) : null}
+                            </motion.div>
                           </div>
                         </div>
 
@@ -2608,6 +2859,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </motion.div>
                           )}
                         </AnimatePresence>
+                        </div>
                       </div>
                     ) : null}
                   </motion.div>
@@ -2668,10 +2920,16 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </div>
                           </div>
                         ) : null}
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <motion.div
+                          className="grid gap-3 sm:grid-cols-2"
+                          variants={topicStagger.container}
+                          initial="hidden"
+                          animate="show"
+                        >
                           {CASE_STUDY_TOPICS.map((topic) => (
                             <motion.button
                               key={topic.name}
+                              variants={topicStagger.item}
                               onClick={() => fetchCaseStudy(topic.name)}
                               className={cn(
                                 "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
@@ -2689,7 +2947,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
                           ))}
-                        </div>
+                        </motion.div>
                       </div>
                     ) : caseStudyLoading ? (
                       <div className="flex flex-col items-center justify-center py-16">
@@ -2963,6 +3221,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                       <>
                         <Confetti
                           active={caseStudyScore >= Math.ceil(caseStudyPayload.questions.length * 0.7)}
+                          reducedMotion={reduceMotion}
                         />
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
@@ -3318,10 +3577,16 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <div className="space-y-3">
+                        <motion.div
+                          className="space-y-3"
+                          variants={topicStagger.container}
+                          initial="hidden"
+                          animate="show"
+                        >
                           {FLASHCARD_TOPICS.map((topic) => (
                             <motion.button
                               key={topic.name}
+                              variants={topicStagger.item}
                               onClick={() => fetchFlashcards(topic.name)}
                               className={cn(
                                 "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
@@ -3342,7 +3607,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
                           ))}
-                        </div>
+                        </motion.div>
                       </div>
                     ) : loading ? (
                       <div className="flex flex-col items-center justify-center py-16">
@@ -3528,7 +3793,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Confetti active={showConfetti && activeTab === "match"} />
+                    <Confetti active={showConfetti && activeTab === "match"} reducedMotion={reduceMotion} />
                     {!matchTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
@@ -3561,10 +3826,16 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <div className="space-y-3">
+                        <motion.div
+                          className="space-y-3"
+                          variants={topicStagger.container}
+                          initial="hidden"
+                          animate="show"
+                        >
                           {MATCH_TOPICS.map((topic) => (
                             <motion.button
                               key={topic.name}
+                              variants={topicStagger.item}
                               onClick={() => fetchMatchRound(topic.name)}
                               className={cn(
                                 "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
@@ -3587,7 +3858,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
                           ))}
-                        </div>
+                        </motion.div>
                       </div>
                     ) : matchLoading ? (
                       <div className="flex flex-col items-center justify-center py-16">
@@ -3770,6 +4041,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
+                    <Confetti active={journalConfetti} reducedMotion={reduceMotion} subtle />
                     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="font-medium text-foreground">Journal practice</p>
