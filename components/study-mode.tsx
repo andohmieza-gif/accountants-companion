@@ -30,12 +30,15 @@ import {
   Link2,
   Briefcase,
   PenLine,
+  Copy,
+  Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   computeStudyStreak,
   loadStudyDays,
+  matchTopicFromFocus,
   recordStudyDayInStorage,
 } from "@/lib/study-helpers";
 import {
@@ -580,6 +583,7 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [journalShowRules, setJournalShowRules] = useState(false);
   const [journalExampleRevealed, setJournalExampleRevealed] = useState(false);
   const [journalHydrated, setJournalHydrated] = useState(false);
+  const [journalCopied, setJournalCopied] = useState(false);
   const [journalEntries, setJournalEntries] = useState(createEmptyJournalRows);
   const [caseScenarioOpen, setCaseScenarioOpen] = useState(true);
   const [caseWrittenSelfScore, setCaseWrittenSelfScore] = useState<(number | null)[]>([]);
@@ -1476,6 +1480,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     setJournalShowRules(false);
     setJournalCaseHint(null);
     setJournalCaseRefTitle(null);
+    setJournalCopied(false);
   };
 
   const updateJournalEntry = (index: number, field: "account" | "debit" | "credit", value: string) => {
@@ -1507,6 +1512,32 @@ export function StudyMode({ theme }: StudyModeProps) {
   const isBalanced = totalDebits > 0 && totalDebits === totalCredits;
   const journalHasInvalidRows = journalEntries.some((_, i) => journalRowHasDebitAndCredit(i));
   const activeJournalPrompt = getPromptById(journalPromptId);
+
+  const copyJournalToClipboard = useCallback(async () => {
+    const td = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.debit), 0);
+    const tc = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.credit), 0);
+    const lines: string[] = [];
+    if (journalDateStr.trim()) lines.push(`Date: ${journalDateStr.trim()}`);
+    if (journalMemo.trim()) lines.push(`Memo: ${journalMemo.trim()}`);
+    if (lines.length) lines.push("");
+    lines.push("Account\tDebit\tCredit");
+    journalEntries.forEach((e) => {
+      lines.push(`${e.account || "—"}\t${e.debit || ""}\t${e.credit || ""}`);
+    });
+    lines.push("");
+    lines.push(`Totals\tDr ${td.toFixed(2)}\tCr ${tc.toFixed(2)}`);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setJournalCopied(true);
+      window.setTimeout(() => setJournalCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }, [journalDateStr, journalMemo, journalEntries]);
+
+  const focusQuickQuizTopic = matchTopicFromFocus(sessionFocusTopic, QUIZ_TOPICS.map((t) => t.name));
+  const focusQuickFlashTopic = matchTopicFromFocus(sessionFocusTopic, FLASHCARD_TOPICS.map((t) => t.name));
+  const focusQuickMatchTopic = matchTopicFromFocus(sessionFocusTopic, MATCH_TOPICS.map((t) => t.name));
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const currentCard = flashcards[currentCardIndex];
@@ -2083,6 +2114,33 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="mb-5 text-muted-foreground">
                           Choose a topic to test your knowledge with 10 questions
                         </p>
+                        {focusQuickQuizTopic ? (
+                          <div
+                            className={cn(
+                              "mb-4 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between",
+                              theme === "dark" ? "border-primary/25 bg-primary/5" : "border-primary/20 bg-primary/5"
+                            )}
+                          >
+                            <div className="flex gap-2 text-sm">
+                              <Crosshair className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                              <div>
+                                <p className="font-medium text-foreground">Quick start from your focus</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Jump into a quiz for{" "}
+                                  <span className="font-medium text-foreground">{focusQuickQuizTopic}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 rounded-lg"
+                              onClick={() => fetchQuiz(focusQuickQuizTopic)}
+                            >
+                              Start this quiz
+                            </Button>
+                          </div>
+                        ) : null}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {QUIZ_TOPICS.map((topic) => (
                             <motion.button
@@ -2226,11 +2284,22 @@ export function StudyMode({ theme }: StudyModeProps) {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
-                            className="mt-8 flex gap-3"
+                            className="mt-8 flex w-full max-w-md flex-col gap-2 sm:max-w-none sm:flex-row sm:justify-center"
                           >
-                            <Button onClick={resetQuiz} size="lg" className="gap-2 rounded-xl px-6">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="lg"
+                              className="gap-2 rounded-xl px-6"
+                              disabled={!quizTopic}
+                              onClick={() => quizTopic && fetchQuiz(quizTopic)}
+                            >
                               <RotateCcw className="h-4 w-4" />
-                              Try Another Topic
+                              Same topic again
+                            </Button>
+                            <Button type="button" onClick={resetQuiz} size="lg" className="gap-2 rounded-xl px-6">
+                              <ChevronLeft className="h-4 w-4" />
+                              Other topics
                             </Button>
                           </motion.div>
                         </motion.div>
@@ -3112,6 +3181,33 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="mb-5 text-muted-foreground">
                           Select a topic to generate study flashcards
                         </p>
+                        {focusQuickFlashTopic ? (
+                          <div
+                            className={cn(
+                              "mb-4 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between",
+                              theme === "dark" ? "border-primary/25 bg-primary/5" : "border-primary/20 bg-primary/5"
+                            )}
+                          >
+                            <div className="flex gap-2 text-sm">
+                              <Crosshair className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                              <div>
+                                <p className="font-medium text-foreground">Quick start from your focus</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Open flashcards for{" "}
+                                  <span className="font-medium text-foreground">{focusQuickFlashTopic}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 rounded-lg"
+                              onClick={() => fetchFlashcards(focusQuickFlashTopic)}
+                            >
+                              Load these cards
+                            </Button>
+                          </div>
+                        ) : null}
                         <div className="space-y-3">
                           {FLASHCARD_TOPICS.map((topic) => (
                             <motion.button
@@ -3326,6 +3422,33 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="mb-5 text-muted-foreground">
                           Pair each term with its definition. Cards are generated for match play: definitions avoid repeating the term so pairing stays a real recall check.
                         </p>
+                        {focusQuickMatchTopic ? (
+                          <div
+                            className={cn(
+                              "mb-4 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between",
+                              theme === "dark" ? "border-primary/25 bg-primary/5" : "border-primary/20 bg-primary/5"
+                            )}
+                          >
+                            <div className="flex gap-2 text-sm">
+                              <Crosshair className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                              <div>
+                                <p className="font-medium text-foreground">Quick start from your focus</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Start match for{" "}
+                                  <span className="font-medium text-foreground">{focusQuickMatchTopic}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="shrink-0 rounded-lg"
+                              onClick={() => fetchMatchRound(focusQuickMatchTopic)}
+                            >
+                              Start this match
+                            </Button>
+                          </div>
+                        ) : null}
                         <div className="space-y-3">
                           {MATCH_TOPICS.map((topic) => (
                             <motion.button
@@ -3540,13 +3663,25 @@ export function StudyMode({ theme }: StudyModeProps) {
                           Build balanced entries. Your work autosaves on this device.
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={clearJournal}
-                        className="shrink-0 self-start text-sm text-muted-foreground hover:text-foreground"
-                      >
-                        Clear all
-                      </button>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={copyJournalToClipboard}
+                        >
+                          <Copy className="mr-1 h-3.5 w-3.5" />
+                          {journalCopied ? "Copied" : "Copy"}
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={clearJournal}
+                          className="text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          Clear all
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-3">

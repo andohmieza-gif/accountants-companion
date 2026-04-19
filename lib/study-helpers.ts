@@ -57,3 +57,23 @@ export function loadStudyDays(storageKey: string): string[] {
     return [];
   }
 }
+
+/**
+ * Map session focus text (exact topic name, "Drill: …", etc.) onto a picker label for quick-start.
+ */
+export function matchTopicFromFocus(focus: string | null | undefined, candidates: string[]): string | null {
+  if (!focus || typeof focus !== "string") return null;
+  let f = focus.trim().toLowerCase();
+  if (!f) return null;
+  f = f.replace(/^(drill|case)\s*:\s*/i, "").trim();
+
+  const rows = candidates.map((c) => ({ c, l: c.toLowerCase() }));
+  const exact = rows.find((x) => x.l === f);
+  if (exact) return exact.c;
+
+  const hits = rows.filter((x) => x.l.includes(f) || f.includes(x.l));
+  if (hits.length === 0) return null;
+  if (hits.length === 1) return hits[0].c;
+  hits.sort((a, b) => b.l.length - a.l.length);
+  return hits[0].c;
+}
