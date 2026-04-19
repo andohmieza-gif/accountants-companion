@@ -38,6 +38,11 @@ import {
   loadStudyDays,
   recordStudyDayInStorage,
 } from "@/lib/study-helpers";
+import {
+  getPromptById,
+  JOURNAL_PRACTICE_PROMPTS,
+  pickRandomPromptForTopic,
+} from "@/lib/journal-practice";
 
 // Storage key for study stats
 const STUDY_STATS_KEY = "accountants-companion-study-stats";
@@ -46,6 +51,25 @@ const CASE_DRAFT_KEY = "accountants-companion-case-draft";
 const STUDY_ACTIVITY_KEY = "accountants-companion-study-activity";
 const MATCH_BEST_TIME_KEY = "accountants-companion-match-best-times";
 const STUDY_NAV_KEY = "accountants-companion-study-nav";
+const JOURNAL_DRAFT_KEY = "accountants-companion-journal-draft";
+
+type JournalDraftV1 = {
+  v: 1;
+  savedAt: number;
+  memo: string;
+  dateStr: string;
+  entries: { account: string; debit: string; credit: string }[];
+  promptId: string | null;
+  exampleShown: boolean;
+  showRules: boolean;
+  caseHint: string | null;
+  caseRefTitle: string | null;
+};
+
+const createEmptyJournalRows = (): { account: string; debit: string; credit: string }[] => [
+  { account: "", debit: "", credit: "" },
+  { account: "", debit: "", credit: "" },
+];
 
 type MatchPairCount = 4 | 6 | 8;
 
@@ -479,6 +503,22 @@ export function StudyMode({ theme }: StudyModeProps) {
     setDrillTab(tab);
   }, []);
 
+  const goToJournalFromDrill = useCallback(
+    (topic: string) => {
+      const p = pickRandomPromptForTopic(topic);
+      setJournalCaseHint(null);
+      setJournalCaseRefTitle(null);
+      setJournalPromptId(p.id);
+      setJournalExampleRevealed(false);
+      setJournalEntries(createEmptyJournalRows());
+      setJournalMemo(`Drill: ${topic}`);
+      setJournalDateStr("");
+      setSessionFocusTopic(topic);
+      goToTab("journal");
+    },
+    [goToTab]
+  );
+
   const [quizTopic, setQuizTopic] = useState<string | null>(null);
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -533,6 +573,14 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [quizMistakes, setQuizMistakes] = useState<McqMistake[]>([]);
   const [caseMcqMistakes, setCaseMcqMistakes] = useState<McqMistake[]>([]);
   const [journalCaseHint, setJournalCaseHint] = useState<string | null>(null);
+  const [journalCaseRefTitle, setJournalCaseRefTitle] = useState<string | null>(null);
+  const [journalMemo, setJournalMemo] = useState("");
+  const [journalDateStr, setJournalDateStr] = useState("");
+  const [journalPromptId, setJournalPromptId] = useState<string | null>(null);
+  const [journalShowRules, setJournalShowRules] = useState(false);
+  const [journalExampleRevealed, setJournalExampleRevealed] = useState(false);
+  const [journalHydrated, setJournalHydrated] = useState(false);
+  const [journalEntries, setJournalEntries] = useState(createEmptyJournalRows);
   const [caseScenarioOpen, setCaseScenarioOpen] = useState(true);
   const [caseWrittenSelfScore, setCaseWrittenSelfScore] = useState<(number | null)[]>([]);
   const [flashcardHardQueue, setFlashcardHardQueue] = useState<number[]>([]);
@@ -597,7 +645,32 @@ export function StudyMode({ theme }: StudyModeProps) {
       } catch {
         /* ignore */
       }
-      
+
+      try {
+        const jr = localStorage.getItem(JOURNAL_DRAFT_KEY);
+        if (jr) {
+          const d = JSON.parse(jr) as JournalDraftV1;
+          if (d?.v === 1 && Array.isArray(d.entries) && d.entries.length >= 2) {
+            setJournalMemo(typeof d.memo === "string" ? d.memo : "");
+            setJournalDateStr(typeof d.dateStr === "string" ? d.dateStr : "");
+            setJournalPromptId(typeof d.promptId === "string" ? d.promptId : null);
+            setJournalExampleRevealed(d.exampleShown === true);
+            setJournalShowRules(d.showRules === true);
+            setJournalCaseHint(typeof d.caseHint === "string" ? d.caseHint : null);
+            setJournalCaseRefTitle(typeof d.caseRefTitle === "string" ? d.caseRefTitle : null);
+            setJournalEntries(
+              d.entries.map((e) => ({
+                account: typeof e.account === "string" ? e.account : "",
+                debit: typeof e.debit === "string" ? e.debit : "",
+                credit: typeof e.credit === "string" ? e.credit : "",
+              }))
+            );
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
       const savedStats = localStorage.getItem(STUDY_STATS_KEY);
       if (savedStats) {
         try {
@@ -615,7 +688,42 @@ export function StudyMode({ theme }: StudyModeProps) {
     } catch (e) {
       // Ignore errors
     }
+    setJournalHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!journalHydrated) return;
+    const t = window.setTimeout(() => {
+      try {
+        const draft: JournalDraftV1 = {
+          v: 1,
+          savedAt: Date.now(),
+          memo: journalMemo,
+          dateStr: journalDateStr,
+          entries: journalEntries,
+          promptId: journalPromptId,
+          exampleShown: journalExampleRevealed,
+          showRules: journalShowRules,
+          caseHint: journalCaseHint,
+          caseRefTitle: journalCaseRefTitle,
+        };
+        localStorage.setItem(JOURNAL_DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        /* ignore */
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [
+    journalHydrated,
+    journalMemo,
+    journalDateStr,
+    journalEntries,
+    journalPromptId,
+    journalExampleRevealed,
+    journalShowRules,
+    journalCaseHint,
+    journalCaseRefTitle,
+  ]);
 
   useEffect(() => {
     if (skipFirstNavPersist.current) {
@@ -725,11 +833,6 @@ export function StudyMode({ theme }: StudyModeProps) {
   }, [matchTopic, matchTiles.length, matchComplete, settings.matchTimedChallenge]);
 
   const [isFlipped, setIsFlipped] = useState(false);
-
-  const [journalEntries, setJournalEntries] = useState<{ account: string; debit: string; credit: string }[]>([
-    { account: "", debit: "", credit: "" },
-    { account: "", debit: "", credit: "" },
-  ]);
 
   const fetchQuiz = useCallback(async (topic: string) => {
     setLoading(true);
@@ -1336,6 +1439,19 @@ export function StudyMode({ theme }: StudyModeProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeTab, flashcards, currentCardIndex, loading, flashcardHardQueue.length]);
 
+  const parseJournalAmount = (s: string) => {
+    const n = parseFloat(String(s).replace(/,/g, ""));
+    return Number.isNaN(n) ? 0 : n;
+  };
+
+  const journalRowHasDebitAndCredit = (i: number) => {
+    const e = journalEntries[i];
+    if (!e) return false;
+    const d = parseJournalAmount(e.debit);
+    const c = parseJournalAmount(e.credit);
+    return d > 0 && c > 0;
+  };
+
   const addJournalRow = () => {
     setJournalEntries([...journalEntries, { account: "", debit: "", credit: "" }]);
   };
@@ -1347,10 +1463,19 @@ export function StudyMode({ theme }: StudyModeProps) {
   };
 
   const clearJournal = () => {
-    setJournalEntries([
-      { account: "", debit: "", credit: "" },
-      { account: "", debit: "", credit: "" },
-    ]);
+    try {
+      localStorage.removeItem(JOURNAL_DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
+    setJournalEntries(createEmptyJournalRows());
+    setJournalMemo("");
+    setJournalDateStr("");
+    setJournalPromptId(null);
+    setJournalExampleRevealed(false);
+    setJournalShowRules(false);
+    setJournalCaseHint(null);
+    setJournalCaseRefTitle(null);
   };
 
   const updateJournalEntry = (index: number, field: "account" | "debit" | "credit", value: string) => {
@@ -1359,9 +1484,29 @@ export function StudyMode({ theme }: StudyModeProps) {
     setJournalEntries(updated);
   };
 
-  const totalDebits = journalEntries.reduce((sum, e) => sum + (parseFloat(e.debit) || 0), 0);
-  const totalCredits = journalEntries.reduce((sum, e) => sum + (parseFloat(e.credit) || 0), 0);
+  const formatJournalAmountBlur = (index: number, field: "debit" | "credit") => {
+    setJournalEntries((prev) => {
+      const next = [...prev];
+      const raw = String(next[index][field]).replace(/,/g, "").trim();
+      if (raw === "") {
+        next[index] = { ...next[index], [field]: "" };
+        return next;
+      }
+      const n = parseFloat(raw);
+      if (Number.isNaN(n)) {
+        next[index] = { ...next[index], [field]: "" };
+        return next;
+      }
+      next[index] = { ...next[index], [field]: n.toFixed(2) };
+      return next;
+    });
+  };
+
+  const totalDebits = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.debit), 0);
+  const totalCredits = journalEntries.reduce((sum, e) => sum + parseJournalAmount(e.credit), 0);
   const isBalanced = totalDebits > 0 && totalDebits === totalCredits;
+  const journalHasInvalidRows = journalEntries.some((_, i) => journalRowHasDebitAndCredit(i));
+  const activeJournalPrompt = getPromptById(journalPromptId);
 
   const currentQuestion = quizQuestions[currentQuestionIndex];
   const currentCard = flashcards[currentCardIndex];
@@ -2747,6 +2892,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 className="gap-2 rounded-xl"
                                 onClick={() => {
                                   setJournalCaseHint(caseStudyPayload.journalPractice ?? null);
+                                  setJournalCaseRefTitle(caseStudyPayload.title);
+                                  setJournalMemo((m) => {
+                                    const t = `Case: ${caseStudyPayload.title}`;
+                                    return m.trim() ? m : t;
+                                  });
+                                  if (caseStudyTopic) setSessionFocusTopic(caseStudyTopic);
                                   goToTab("journal");
                                 }}
                               >
@@ -3047,6 +3198,21 @@ export function StudyMode({ theme }: StudyModeProps) {
                           </div>
                         </div>
 
+                        {flashcardTopic ? (
+                          <div className="mb-3 flex justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg text-xs"
+                              onClick={() => goToJournalFromDrill(flashcardTopic)}
+                            >
+                              <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
+                              Try a journal entry for this topic
+                            </Button>
+                          </div>
+                        ) : null}
+
                         {/* Flashcard */}
                         <div className="perspective-1000 mb-6">
                           <motion.div
@@ -3250,16 +3416,28 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </p>
                             )}
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 rounded-lg text-xs"
-                            onClick={() => matchTopic && fetchMatchRound(matchTopic)}
-                          >
-                            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-                            New deck
-                          </Button>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg px-2 text-xs"
+                              onClick={() => matchTopic && goToJournalFromDrill(matchTopic)}
+                            >
+                              <FileSpreadsheet className="mr-1 h-3.5 w-3.5" />
+                              Journal
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="rounded-lg text-xs"
+                              onClick={() => matchTopic && fetchMatchRound(matchTopic)}
+                            >
+                              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                              New deck
+                            </Button>
+                          </div>
                         </div>
 
                         {matchComplete && (
@@ -3355,18 +3533,112 @@ export function StudyMode({ theme }: StudyModeProps) {
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <div className="mb-5 flex items-center justify-between">
-                      <p className="text-muted-foreground">
-                        Practice creating balanced journal entries
-                      </p>
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="font-medium text-foreground">Journal practice</p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          Build balanced entries. Your work autosaves on this device.
+                        </p>
+                      </div>
                       <button
                         type="button"
                         onClick={clearJournal}
-                        className="text-sm text-muted-foreground hover:text-foreground"
+                        className="shrink-0 self-start text-sm text-muted-foreground hover:text-foreground"
                       >
                         Clear all
                       </button>
                     </div>
+
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                      <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground">
+                        Practice transaction
+                        <select
+                          value={journalPromptId ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setJournalExampleRevealed(false);
+                            setJournalEntries(createEmptyJournalRows());
+                            setJournalPromptId(v === "" ? null : v);
+                          }}
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-sm font-normal text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
+                            theme === "dark" ? "border-border bg-card" : "border-input bg-background"
+                          )}
+                          aria-label="Choose a practice transaction or blank worksheet"
+                        >
+                          <option value="">Blank worksheet (no scenario)</option>
+                          {JOURNAL_PRACTICE_PROMPTS.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                        onClick={() => {
+                          const p =
+                            JOURNAL_PRACTICE_PROMPTS[
+                              Math.floor(Math.random() * JOURNAL_PRACTICE_PROMPTS.length)
+                            ]!;
+                          setJournalPromptId(p.id);
+                          setJournalExampleRevealed(false);
+                          setJournalEntries(createEmptyJournalRows());
+                        }}
+                      >
+                        Random prompt
+                      </Button>
+                    </div>
+
+                    {activeJournalPrompt ? (
+                      <div
+                        className={cn(
+                          "mb-4 rounded-xl border p-3 text-sm leading-relaxed",
+                          theme === "dark" ? "border-border bg-card/40" : "border-border/60 bg-muted/30"
+                        )}
+                      >
+                        <p className="font-semibold text-foreground">{activeJournalPrompt.title}</p>
+                        <p className="mt-1 text-muted-foreground">{activeJournalPrompt.scenario}</p>
+                        {activeJournalPrompt.example.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg"
+                              onClick={() => setJournalExampleRevealed((r) => !r)}
+                            >
+                              {journalExampleRevealed ? "Hide example entry" : "Show example entry"}
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              Reveal only after you try—one valid pattern, not the only answer.
+                            </span>
+                          </div>
+                        ) : null}
+                        {journalExampleRevealed && activeJournalPrompt.example.length > 0 ? (
+                          <div
+                            className={cn(
+                              "mt-3 rounded-lg border p-2 text-xs",
+                              theme === "dark" ? "border-emerald-500/20 bg-emerald-950/20" : "border-emerald-500/25 bg-emerald-50/80"
+                            )}
+                          >
+                            <p className="mb-2 font-medium text-foreground">Example (balanced)</p>
+                            <ul className="space-y-1 text-muted-foreground">
+                              {activeJournalPrompt.example.map((line, li) => (
+                                <li key={li}>
+                                  <span className="text-foreground">{line.account}</span>
+                                  {line.debit ? ` · Dr ${parseJournalAmount(line.debit).toFixed(2)}` : ""}
+                                  {line.credit ? ` · Cr ${parseJournalAmount(line.credit).toFixed(2)}` : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {journalCaseHint ? (
                       <div
@@ -3377,39 +3649,199 @@ export function StudyMode({ theme }: StudyModeProps) {
                         role="status"
                       >
                         <p className="font-medium text-foreground">From your case</p>
+                        {journalCaseRefTitle ? (
+                          <p className="mt-0.5 text-xs text-muted-foreground">{journalCaseRefTitle}</p>
+                        ) : null}
                         <p className="mt-1 text-muted-foreground">{journalCaseHint}</p>
                         <button
                           type="button"
                           className="mt-2 text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
-                          onClick={() => setJournalCaseHint(null)}
+                          onClick={() => {
+                            setJournalCaseHint(null);
+                            setJournalCaseRefTitle(null);
+                          }}
                         >
                           Dismiss
                         </button>
                       </div>
                     ) : null}
 
-                    <div className={cn(
-                      "overflow-hidden rounded-xl border",
-                      theme === "dark" ? "border-border" : "border-border/60"
-                    )}>
+                    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                        Reference / memo
+                        <input
+                          type="text"
+                          value={journalMemo}
+                          onChange={(e) => setJournalMemo(e.target.value)}
+                          placeholder="e.g., Case: Q3 close, Drill: Revenue…"
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-sm font-normal outline-none ring-offset-background placeholder:text-muted-foreground/40 focus-visible:ring-2 focus-visible:ring-ring",
+                            theme === "dark" ? "border-border bg-card" : "border-input bg-background"
+                          )}
+                          aria-label="Journal reference or memo"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+                        Date (optional)
+                        <input
+                          type="text"
+                          value={journalDateStr}
+                          onChange={(e) => setJournalDateStr(e.target.value)}
+                          placeholder="e.g., 2026-03-15 or Mar 15"
+                          className={cn(
+                            "rounded-lg border px-3 py-2 text-sm font-normal outline-none ring-offset-background placeholder:text-muted-foreground/40 focus-visible:ring-2 focus-visible:ring-ring",
+                            theme === "dark" ? "border-border bg-card" : "border-input bg-background"
+                          )}
+                          aria-label="Journal date optional"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mb-4 rounded-xl border border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => setJournalShowRules((s) => !s)}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-medium"
+                        aria-expanded={journalShowRules}
+                      >
+                        Posting tips
+                        <ChevronDown
+                          className={cn("h-4 w-4 shrink-0 transition-transform", journalShowRules && "rotate-180")}
+                        />
+                      </button>
+                      {journalShowRules ? (
+                        <ul className="space-y-1.5 border-t border-border/50 px-3 py-3 text-xs text-muted-foreground">
+                          <li>Put the amount on <span className="font-medium text-foreground">debit or credit</span>, not both on the same line.</li>
+                          <li>Total debits must equal total credits for the entry to balance.</li>
+                          <li>Each extra line is another account; split amounts across lines when needed.</li>
+                        </ul>
+                      ) : null}
+                    </div>
+
+                    {journalHasInvalidRows ? (
+                      <p className="mb-3 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                        <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        One or more rows have both a debit and a credit. Use separate lines for each side.
+                      </p>
+                    ) : null}
+
+                    {/* Mobile: stacked rows */}
+                    <div className="space-y-3 md:hidden">
+                      {journalEntries.map((entry, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            "rounded-xl border p-3",
+                            journalRowHasDebitAndCredit(i)
+                              ? "border-amber-500/50 bg-amber-500/5"
+                              : theme === "dark"
+                              ? "border-border bg-card/30"
+                              : "border-border/60 bg-background/80"
+                          )}
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-xs font-medium text-muted-foreground">Line {i + 1}</span>
+                            {journalEntries.length > 2 ? (
+                              <button
+                                type="button"
+                                onClick={() => removeJournalRow(i)}
+                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                                aria-label={`Remove line ${i + 1}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                          <input
+                            type="text"
+                            value={entry.account}
+                            onChange={(e) => updateJournalEntry(i, "account", e.target.value)}
+                            placeholder="Account name"
+                            aria-label={`Line ${i + 1} account`}
+                            className={cn(
+                              "mb-2 w-full rounded-lg border px-2 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
+                              theme === "dark" ? "border-border bg-card/50" : "border-input bg-background"
+                            )}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="text-[10px] font-medium text-muted-foreground">
+                              Debit
+                              <input
+                                inputMode="decimal"
+                                value={entry.debit}
+                                onChange={(e) => updateJournalEntry(i, "debit", e.target.value)}
+                                onBlur={() => formatJournalAmountBlur(i, "debit")}
+                                placeholder="0.00"
+                                aria-label={`Line ${i + 1} debit`}
+                                className={cn(
+                                  "mt-0.5 w-full rounded-lg border px-2 py-2 text-right text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
+                                  theme === "dark" ? "border-border bg-card/50" : "border-input bg-background"
+                                )}
+                              />
+                            </label>
+                            <label className="text-[10px] font-medium text-muted-foreground">
+                              Credit
+                              <input
+                                inputMode="decimal"
+                                value={entry.credit}
+                                onChange={(e) => updateJournalEntry(i, "credit", e.target.value)}
+                                onBlur={() => formatJournalAmountBlur(i, "credit")}
+                                placeholder="0.00"
+                                aria-label={`Line ${i + 1} credit`}
+                                className={cn(
+                                  "mt-0.5 w-full rounded-lg border px-2 py-2 text-right text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring",
+                                  theme === "dark" ? "border-border bg-card/50" : "border-input bg-background"
+                                )}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                      <div
+                        className={cn(
+                          "flex items-center justify-between rounded-xl border px-3 py-2 text-sm font-medium",
+                          theme === "dark" ? "border-border bg-card" : "border-border bg-muted/50"
+                        )}
+                      >
+                        <span>Total</span>
+                        <span className="tabular-nums">
+                          Dr ${totalDebits.toFixed(2)} · Cr ${totalCredits.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Desktop table */}
+                    <div
+                      className={cn(
+                        "hidden overflow-hidden rounded-xl border md:block",
+                        theme === "dark" ? "border-border" : "border-border/60"
+                      )}
+                    >
                       <table className="w-full text-sm">
                         <thead>
                           <tr className={theme === "dark" ? "bg-card" : "bg-muted/50"}>
                             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Account</th>
                             <th className="w-28 px-4 py-3 text-right font-medium text-muted-foreground">Debit</th>
                             <th className="w-28 px-4 py-3 text-right font-medium text-muted-foreground">Credit</th>
-                            <th className="w-12"></th>
+                            <th className="w-12" />
                           </tr>
                         </thead>
                         <tbody>
                           {journalEntries.map((entry, i) => (
-                            <tr key={i} className="border-t border-border/50">
+                            <tr
+                              key={i}
+                              className={cn(
+                                "border-t border-border/50",
+                                journalRowHasDebitAndCredit(i) && "bg-amber-500/10"
+                              )}
+                            >
                               <td className="p-2">
                                 <input
                                   type="text"
                                   value={entry.account}
                                   onChange={(e) => updateJournalEntry(i, "account", e.target.value)}
-                                  placeholder={i === 0 ? "e.g., Cash" : i === 1 ? "e.g., Service Revenue" : "Account name"}
+                                  placeholder={i === 0 ? "e.g., Cash" : i === 1 ? "e.g., Revenue" : "Account name"}
+                                  aria-label={`Line ${i + 1} account`}
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 outline-none placeholder:text-muted-foreground/40",
                                     theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
@@ -3418,10 +3850,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </td>
                               <td className="p-2">
                                 <input
-                                  type="number"
+                                  inputMode="decimal"
                                   value={entry.debit}
                                   onChange={(e) => updateJournalEntry(i, "debit", e.target.value)}
+                                  onBlur={() => formatJournalAmountBlur(i, "debit")}
                                   placeholder="0.00"
+                                  aria-label={`Line ${i + 1} debit`}
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 text-right outline-none placeholder:text-muted-foreground/40",
                                     theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
@@ -3430,10 +3864,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                               </td>
                               <td className="p-2">
                                 <input
-                                  type="number"
+                                  inputMode="decimal"
                                   value={entry.credit}
                                   onChange={(e) => updateJournalEntry(i, "credit", e.target.value)}
+                                  onBlur={() => formatJournalAmountBlur(i, "credit")}
                                   placeholder="0.00"
+                                  aria-label={`Line ${i + 1} credit`}
                                   className={cn(
                                     "w-full rounded-lg border-0 bg-transparent px-2 py-2 text-right outline-none placeholder:text-muted-foreground/40",
                                     theme === "dark" ? "focus:bg-card" : "focus:bg-muted/60"
@@ -3441,52 +3877,63 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 />
                               </td>
                               <td className="p-2">
-                                {journalEntries.length > 2 && (
+                                {journalEntries.length > 2 ? (
                                   <button
+                                    type="button"
                                     onClick={() => removeJournalRow(i)}
                                     className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                                    aria-label={`Remove line ${i + 1}`}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </button>
-                                )}
+                                ) : null}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
-                          <tr className={cn(
-                            "border-t-2 font-medium",
-                            theme === "dark" ? "border-border bg-card" : "border-border bg-muted/50"
-                          )}>
+                          <tr
+                            className={cn(
+                              "border-t-2 font-medium",
+                              theme === "dark" ? "border-border bg-card" : "border-border bg-muted/50"
+                            )}
+                          >
                             <td className="px-4 py-3">Total</td>
                             <td className="px-4 py-3 text-right">${totalDebits.toFixed(2)}</td>
                             <td className="px-4 py-3 text-right">${totalCredits.toFixed(2)}</td>
-                            <td></td>
+                            <td />
                           </tr>
                         </tfoot>
                       </table>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between">
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <Button variant="outline" size="sm" onClick={addJournalRow} className="gap-1 rounded-lg">
                         <Plus className="h-4 w-4" />
-                        Add Row
+                        Add row
                       </Button>
                       <motion.div
-                        animate={isBalanced ? { scale: [1, 1.05, 1] } : {}}
+                        animate={isBalanced && !journalHasInvalidRows ? { scale: [1, 1.05, 1] } : {}}
                         className={cn(
                           "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium",
-                          isBalanced
+                          journalHasInvalidRows
+                            ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                            : isBalanced
                             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                             : totalDebits > 0 || totalCredits > 0
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {isBalanced ? (
+                        {journalHasInvalidRows ? (
+                          <>
+                            <XCircle className="h-4 w-4" />
+                            Fix row errors
+                          </>
+                        ) : isBalanced ? (
                           <>
                             <CheckCircle2 className="h-4 w-4" />
-                            Balanced!
+                            Balanced
                           </>
                         ) : totalDebits > 0 || totalCredits > 0 ? (
                           <>
