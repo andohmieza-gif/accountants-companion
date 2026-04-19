@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
@@ -405,124 +405,135 @@ function buildMatchTilesFromCards(cards: Flashcard[], pairCount: number): MatchT
 }
 
 const QUIZ_LOADING_MESSAGES = [
-  { text: "Brewing some brain teasers...", emoji: "🧪" },
-  { text: "Consulting the accounting gods...", emoji: "🔮" },
-  { text: "Making sure debits equal credits...", emoji: "⚖️" },
-  { text: "Sharpening your pencils...", emoji: "✏️" },
-  { text: "Counting beans (it's what we do)...", emoji: "🫘" },
-  { text: "Balancing the trial balance...", emoji: "📊" },
-  { text: "Double-checking for materiality...", emoji: "🔍" },
-  { text: "Almost there, promise!", emoji: "🏃" },
-  { text: "Waking up the number crunchers...", emoji: "🧮" },
-  { text: "Recalculating depreciation...", emoji: "📉" },
-  { text: "Checking if LIFO or FIFO...", emoji: "📦" },
-  { text: "Auditing the question bank...", emoji: "🔎" },
-  { text: "Running internal controls...", emoji: "🎛️" },
-  { text: "Verifying account balances...", emoji: "✅" },
-  { text: "Preparing your challenge...", emoji: "🎯" },
-  { text: "This is gonna be good...", emoji: "😎" },
-  { text: "Loading CPA-level difficulty...", emoji: "💪" },
-  { text: "Calibrating brain cells...", emoji: "🧬" },
-  { text: "Accruing more patience (and questions)...", emoji: "⏳" },
-  { text: "Telling the spreadsheet it's definitely not 'just a phase'...", emoji: "📗" },
-  { text: "Explaining to management why we can't 'just round'...", emoji: "🤷" },
-  { text: "Convincing the trial balance to behave...", emoji: "🙏" },
-  { text: "Rolling forward last year's jokes… I mean, workpapers…", emoji: "📎" },
-  { text: "Materiality: low for this loader, high for your ego after a perfect score", emoji: "📏" },
-  { text: "Asking the partner for sign-off (they're busy; we're still writing your quiz)", emoji: "✍️" },
-  { text: "Capitalizing fun, expensing stress: GAAP says no, we say maybe", emoji: "😅" },
-  { text: "Footnotes: there will be jokes. Substance over form.", emoji: "📝" },
-  { text: "Impairment testing your attention span…", emoji: "🔋" },
-  { text: "Reconciling you vs. the answer key (friendly fire)", emoji: "🤝" },
-  { text: "Substantive procedures on procrastination… inconclusive", emoji: "🛋️" },
-  { text: "Cash basis: how we pay for pizza. Accrual basis: how we study.", emoji: "🍕" },
-  { text: "If debits and credits had a podcast, you'd be episode one", emoji: "🎙️" },
-  { text: "Sampling your brain for relevant assertions…", emoji: "🧠" },
-  { text: "Independence threat: we're rooting for you anyway", emoji: "🦸" },
-  { text: "Work-in-progress: like inventory, but with questions", emoji: "🏭" },
-  { text: "Tick-and-tie, but make it multiple choice", emoji: "✔️" },
+  { text: "Making sure debits and credits still get along", emoji: "⚖️" },
+  { text: "Still faster than the office printer 'warming up'", emoji: "🖨️" },
+  { text: "Materiality: low for this loader, high for your next win", emoji: "📏" },
+  { text: "Negotiating with the Wi-Fi (it's winning again)", emoji: "📶" },
+  { text: "Rolling forward good vibes from the prior period", emoji: "📎" },
+  { text: "The progress bar is approximate. Your effort isn't.", emoji: "📊" },
+  { text: "Teaching the question bank some manners", emoji: "📚" },
+  { text: "Straight-line loading your patience (no salvage value)", emoji: "📉" },
+  { text: "Substance over form: real questions, fancy wrapper", emoji: "📝" },
+  { text: "If LIFO were a line, you'd already be at the front", emoji: "📦" },
+  { text: "Internal controls on fun: operating effectively", emoji: "🎛️" },
+  { text: "Summoning bytes from the cloud (with proper documentation)", emoji: "☁️" },
+  { text: "Good things come to those who wait. Allegedly.", emoji: "⏳" },
+  { text: "Your coffee is cooling. We're almost balanced.", emoji: "☕" },
+  { text: "Tick-and-tie energy, but make it multiple choice", emoji: "✔️" },
+  { text: "Sharpening pencils and professional judgment", emoji: "✏️" },
+  { text: "The server said 'brb' and meant it", emoji: "🖥️" },
+  { text: "Sampling your brain for relevant... enthusiasm", emoji: "🧠" },
+  { text: "Almost there. Pinky promise.", emoji: "🤙" },
+  { text: "Hydrate. Stretch. We'll handle the heavy journal entries.", emoji: "💧" },
+  { text: "Spreadsheet says hi. It wants fewer circular references.", emoji: "📗" },
   { text: "Going concern: you, after this quiz (you'll be fine)", emoji: "☕" },
+  { text: "Work-in-progress: like inventory, but with trivia", emoji: "🏭" },
+  { text: "If debits and credits had a study group, you'd fit right in", emoji: "🎓" },
+  { text: "Footnotes: optional. Good answers: less optional.", emoji: "📄" },
+  { text: "Calibrating brain cells and rounding errors (humanely)", emoji: "🧬" },
+  { text: "Cash basis: pizza tonight. Accrual basis: you earned it.", emoji: "🍕" },
+  { text: "Consulting the magic 8 ball... reply hazy, try again", emoji: "🎱" },
+  { text: "Your patience: capitalized. This wait: not amortized.", emoji: "🏆" },
+  { text: "Plot twist: we're almost done", emoji: "📖" },
+  { text: "Teaching electrons to post to the right account", emoji: "⚡" },
+  { text: "The ducks are in a row. So are the adjusting entries. Almost.", emoji: "🦆" },
+  { text: "Loading like dial-up, but with better fonts and GAAP", emoji: "📞" },
+  { text: "Sprinkling a little 'you got this' on the payload", emoji: "💪" },
+  { text: "Trial balance of the universe: pending one more line item", emoji: "🌌" },
+  { text: "Auditing the fun levels. So far, material.", emoji: "🔎" },
+  { text: "If this were a video game, you'd have a save point by now", emoji: "🎮" },
+  { text: "Counting beans gently (figuratively and literally)", emoji: "🫘" },
 ];
 
 const FLASHCARD_LOADING_MESSAGES = [
-  { text: "Crafting knowledge nuggets...", emoji: "💎" },
-  { text: "Condensing wisdom...", emoji: "📚" },
-  { text: "Making things stick...", emoji: "🧠" },
-  { text: "Preparing bite-sized brilliance...", emoji: "✨" },
-  { text: "Folding paper virtually...", emoji: "📄" },
-  { text: "Loading accounting wisdom...", emoji: "🦉" },
-  { text: "Almost ready to flip!", emoji: "🃏" },
-  { text: "Summarizing the textbook...", emoji: "📖" },
-  { text: "Extracting key concepts...", emoji: "🔑" },
-  { text: "Making memorization easier...", emoji: "🎓" },
-  { text: "Distilling complex topics...", emoji: "⚗️" },
-  { text: "Creating mental shortcuts...", emoji: "🛤️" },
-  { text: "Packaging knowledge pills...", emoji: "💊" },
-  { text: "Your brain will thank you...", emoji: "🙏" },
-  { text: "Study smarter, not harder...", emoji: "🚀" },
-  { text: "Flash! Ahh-ahh...", emoji: "⚡" },
-  { text: "Compressing GAAP into snack size (do not eat the cards)", emoji: "🍿" },
-  { text: "Front: term. Back: the thing you swear you knew yesterday", emoji: "🪞" },
-  { text: "Turning paragraphs into punchy one-liners…", emoji: "🥊" },
-  { text: "Memorize now, impress people at parties later (results may vary)", emoji: "🎉" },
-  { text: "Spaced repetition called: it wants its royalties", emoji: "📞" },
-  { text: "If flashcards were currency, you'd be rich soon", emoji: "💰" },
-  { text: "Loading… like closing the books, but faster", emoji: "⏱️" },
-  { text: "Your future self is already grateful (slightly smug)", emoji: "🦚" },
-  { text: "Index cards wish they were this digital", emoji: "💳" },
-  { text: "Mnemonics loading… or however you pronounce that", emoji: "🔤" },
-  { text: "Flip phone era is over; flip cards era is now", emoji: "📱" },
-  { text: "Cramming ethically (oxymoron, but we try)", emoji: "⚖️" },
-  { text: "Synapses doing light cardio…", emoji: "🏃‍♀️" },
-  { text: "TL;DR machine go brrr (politely)", emoji: "🤖" },
-  { text: "Flashcards: the original stack overflow", emoji: "📚" },
-  { text: "Still better than rereading chapter 12 for the fifth time", emoji: "😵" },
-  { text: "Packaging dopamine with depreciation facts", emoji: "🎁" },
+  { text: "Condensing chapters into bite-sized brilliance", emoji: "📚" },
+  { text: "GAAP-approved snack size (do not eat the screen)", emoji: "🍿" },
+  { text: "Front: term. Back: the thing you knew yesterday", emoji: "🃏" },
+  { text: "Stacking cards like a tidy general ledger", emoji: "📇" },
+  { text: "If this were paper, we'd be out of rubber bands", emoji: "📎" },
+  { text: "Mnemonics loading... or however you pronounce that", emoji: "🔤" },
+  { text: "Still beats highlighting the whole chapter in yellow", emoji: "🖍️" },
+  { text: "Making memorization feel less like a closing checklist", emoji: "✅" },
+  { text: "Your brain called. It wants a coffee break after this.", emoji: "☕" },
+  { text: "Flip incoming. Dramatic pause included.", emoji: "🎬" },
+  { text: "Packaging facts with a bow (metaphorical bow)", emoji: "🎁" },
+  { text: "Synapses doing light cardio", emoji: "🏃" },
+  { text: "Index cards wish they scrolled this smooth", emoji: "💳" },
+  { text: "Turning walls of text into mental sticky notes", emoji: "📝" },
+  { text: "Flash! Thunder! Cards! (Two out of three)", emoji: "⚡" },
+  { text: "If knowledge were pizza, we're slicing it fairly", emoji: "🍕" },
+  { text: "Cram mode: engaged (ethically, we hope)", emoji: "😇" },
+  { text: "Downloading 'aha' moments... please hold", emoji: "💡" },
+  { text: "Spaced repetition wants royalties in highlighters", emoji: "🖊️" },
+  { text: "Front of card: confidence. Back: gentle reality check", emoji: "😅" },
+  { text: "Folding the universe into neat rectangles", emoji: "📐" },
+  { text: "Almost ready. The cards are tying their shoes.", emoji: "👟" },
+  { text: "Loading facts with 30% more whimsy (immaterial rounding)", emoji: "🎪" },
+  { text: "Depreciation of attention: zero. You're fully capitalized.", emoji: "📊" },
+  { text: "Your deck is shuffling. Your playlist can wait.", emoji: "🎧" },
+  { text: "From textbook wall to flashcard hall of fame", emoji: "🏛️" },
+  { text: "Teaching terms and definitions to share nicely", emoji: "🤝" },
+  { text: "Knowledge nuggets: fresh, office-appropriate", emoji: "🍎" },
+  { text: "Brain gym: reps for recall, not for drama", emoji: "🏋️" },
+  { text: "Almost ready to flip. No coin toss required.", emoji: "🪙" },
+  { text: "Standard-setting body not consulted on this pun", emoji: "📋" },
+  { text: "Encouraging neurons to post in balance", emoji: "🧠" },
+  { text: "Microwave-speed mystery, spreadsheet-level care", emoji: "⏱️" },
+  { text: "Cards so tidy your binder would be jealous", emoji: "📒" },
 ];
 
 const MATCH_LOADING_MESSAGES = [
-  { text: "Shuffling pairs like a deck of journal lines...", emoji: "🃏" },
-  { text: "Making sure term doesn't marry term (awkward audit finding)", emoji: "💒" },
-  { text: "Speed-dating definitions with concepts…", emoji: "💘" },
-  { text: "Matching harder than bank rec on a Friday…", emoji: "🏦" },
-  { text: "Linking like it's VLOOKUP but you're the formula", emoji: "🔗" },
-  { text: "Pairs: not just for socks and audit samples", emoji: "🧦" },
-  { text: "Tile entropy approaching maximum fun…", emoji: "🎲" },
-  { text: "Reconciling left brain with right brain…", emoji: "🧠" },
-  { text: "Almost ready: stretch those click fingers", emoji: "🖱️" },
-  { text: "If this were Excel, we'd merge cells (we won't)", emoji: "📗" },
-  { text: "Building bridges between words and meanings…", emoji: "🌉" },
-  { text: "Control match: design effective, operation hilarious", emoji: "🎮" },
-  { text: "Two columns enter, one truth leaves", emoji: "🥊" },
-  { text: "Memorization meets memory game…", emoji: "🧩" },
+  { text: "Reconciling left brain with right brain", emoji: "🧠" },
+  { text: "If socks can find partners, so can these terms", emoji: "🧦" },
+  { text: "Pairs: not just for headphones and audit samples", emoji: "🎧" },
+  { text: "Linking like a careful VLOOKUP (you're the formula)", emoji: "🔗" },
+  { text: "Shuffling tiles with the care of a bank rec on Friday", emoji: "🏦" },
+  { text: "Matching harder than a tidy chart of accounts", emoji: "📊" },
+  { text: "Building bridges between words and meanings", emoji: "🌉" },
+  { text: "Two columns, one goal: find the right pair", emoji: "🧩" },
+  { text: "Entropy is losing. You're winning. Soon.", emoji: "🎲" },
+  { text: "Click prep: stretch, sip water, you've got this", emoji: "🖱️" },
+  { text: "Sorting chaos into neat little matches", emoji: "🗂️" },
+  { text: "Almost ready. The tiles are lining up politely.", emoji: "🤸" },
+  { text: "Connecting clues like a tidy workpaper", emoji: "🕵️" },
+  { text: "If Excel smiled, it'd look like this minigame", emoji: "💚" },
+  { text: "Tile calm: breathe in, align, exhale, match", emoji: "🧘" },
+  { text: "Loading pairs at a responsible pace", emoji: "📺" },
+  { text: "Connecting dots without the crayon mess", emoji: "🖍️" },
+  { text: "Match engine powered by focus and maybe coffee", emoji: "☕" },
+  { text: "Shuffle mode: engaged. Fair play: required.", emoji: "🃏" },
+  { text: "Teaching terms to find their definition buddy", emoji: "📱" },
+  { text: "Control match: design effective, operation friendly", emoji: "🎮" },
+  { text: "Almost there. Good things pair well with patience.", emoji: "🌟" },
 ];
 
 const CASE_STUDY_LOADING_MESSAGES = [
-  { text: "Drafting a realistic client situation...", emoji: "📋" },
-  { text: "Building facts you can reason from...", emoji: "🏗️" },
-  { text: "What would the controller do?", emoji: "🤔" },
-  { text: "Grounding the case in U.S. GAAP...", emoji: "⚖️" },
-  { text: "Almost ready to read...", emoji: "📖" },
-  { text: "Sharpening professional judgment...", emoji: "🎯" },
-  { text: "Checking materiality (metaphorically)...", emoji: "🔍" },
-  { text: "This one could happen on the job...", emoji: "💼" },
-  { text: "Inventing a company that definitely isn't your employer…", emoji: "🏢" },
-  { text: "Adding drama (the professional kind)", emoji: "🎭" },
-  { text: "Client says 'it's immaterial'; we say 'nice try'", emoji: "🍿" },
-  { text: "Watering the facts until they grow into a narrative", emoji: "🌱" },
-  { text: "Related parties: fictional, but the stress is real", emoji: "👯" },
-  { text: "Writing the memo you'd actually want to read", emoji: "✍️" },
-  { text: "Simulating busy season without the overtime", emoji: "🌙" },
-  { text: "Professional skepticism: loading… 47%", emoji: "🧐" },
-  { text: "If this were a PDF, it'd be 40 pages. You're welcome.", emoji: "📎" },
-  { text: "Escalating issues… to the next loading message", emoji: "📣" },
-  { text: "Substantive procedures on storytelling…", emoji: "📚" },
-  { text: "Management representation letter: 'we're fun' (unsigned)", emoji: "😇" },
-  { text: "Risk assessment: you might actually learn something", emoji: "⚠️" },
-  { text: "Workpaper W-1: Witty banter (required field)", emoji: "🗂️" },
-  { text: "Confirming cash… just kidding, we're still writing the case", emoji: "💵" },
-  { text: "The engagement letter said 'reasonable assurance.' We added jokes", emoji: "📜" },
-  { text: "Brain-friendly font, soul-crushing standards", emoji: "🔤" },
+  { text: "Drafting a scenario you can actually reason through", emoji: "📋" },
+  { text: "Grounding the story in facts (and a little flair)", emoji: "⚖️" },
+  { text: "Professional skepticism: loading... 47% (rounded up)", emoji: "🧐" },
+  { text: "If this were a PDF, it'd still feel long. Worth it.", emoji: "📎" },
+  { text: "Inventing a company that isn't your employer", emoji: "🏢" },
+  { text: "Watering the facts until they grow a clear narrative", emoji: "🌱" },
+  { text: "Related parties: fictional. The learning: real.", emoji: "👯" },
+  { text: "Writing the memo you'd actually want to skim", emoji: "✍️" },
+  { text: "Simulating busy season vibes without the overtime", emoji: "🌙" },
+  { text: "Risk assessment: you might learn something useful", emoji: "⚠️" },
+  { text: "Confirming details... okay, still drafting the scene", emoji: "💵" },
+  { text: "Footnotes welcome. Typos less welcome.", emoji: "📝" },
+  { text: "Building judgment calls you can defend out loud", emoji: "🎯" },
+  { text: "Spreadsheet energy, storytelling heart", emoji: "📊" },
+  { text: "Materiality: we kept the plot tight on purpose", emoji: "🔍" },
+  { text: "Internal narrative controls: operating as intended", emoji: "🎛️" },
+  { text: "Almost ready. The facts are doing their stretches.", emoji: "🏃" },
+  { text: "Substance over form: solid scenario, friendly tone", emoji: "📖" },
+  { text: "Casting fictional coworkers who mean well", emoji: "🎬" },
+  { text: "What would a thoughtful controller notice first?", emoji: "🤔" },
+  { text: "Patch notes: clearer facts, fewer rabbit holes", emoji: "🛠️" },
+  { text: "This one could plausibly happen on the job", emoji: "💼" },
+  { text: "Brain-friendly font. Standards-friendly mindset.", emoji: "🔤" },
+  { text: "Escalating curiosity to the next loading line", emoji: "📣" },
+  { text: "The case file is almost ready for your highlighter", emoji: "🖊️" },
+  { text: "Good scenarios take a moment. So does good judgment.", emoji: "☕" },
 ];
 
 const shuffleArray = <T,>(arr: T[]): T[] => {
@@ -533,6 +544,120 @@ const shuffleArray = <T,>(arr: T[]): T[] => {
   }
   return shuffled;
 };
+
+/**
+ * Short clips while study content loads (decorative), plus the message emoji for a GIF + emoji mix.
+ * Emoji-only when reduced motion is preferred. Uses i.giphy.com direct URLs (more reliable than media subdomain for embeds).
+ */
+const FUNNY_STUDY_LOADING_GIFS = [
+  "https://i.giphy.com/mlvseq9yvZhba.gif",
+  "https://i.giphy.com/26ufdipQqU2lhNA4g.gif",
+  "https://i.giphy.com/l3q2K5jinAlChoCLS.gif",
+  "https://i.giphy.com/3o7abKhOpu0NwenH3O.gif",
+  "https://i.giphy.com/l4JyOCNEfXvVYEqB2.gif",
+  "https://i.giphy.com/13CoXDiaCcCoyk.gif",
+  "https://i.giphy.com/xT9IgG50Fb7Mi0prBC.gif",
+  "https://i.giphy.com/9J7tdYltWyXIY.gif",
+  "https://i.giphy.com/3o7aCTPPm4OHfRLSH6.gif",
+  "https://media.giphy.com/media/v1.Y2lkPWVjZjA1ZTQ3MmVpOWtsZjM1aGx3OXgxZ3B4ZW40Z2tzM3N0MTFnZmVyMHl2YXJtdSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/mFdnWF1RTI7fi/giphy.gif",
+  "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExeTU4M2VnbzhkdHJoZ2VxODUxZ3ByMHVsZGFrbTk0MzlhaGpycHJ3YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/gKHGnB1ml0moQdjhEJ/giphy.gif",
+  "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXQxYnJxdG41NHB2bHVsM3ppMXNicGlzNmRmaHNjejQzYXhuZ3NhNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/kg716uIDecwuUlmYSx/giphy.gif"
+] as const;
+
+function giphyMediaFallbackUrl(iGiphyUrl: string): string | null {
+  const m = iGiphyUrl.match(/i\.giphy\.com\/([^/.]+)\.gif/i);
+  return m?.[1] ? `https://media.giphy.com/media/${m[1]}/giphy.gif` : null;
+}
+
+function StudyLoadingGraphic({
+  gifSlotIndex,
+  emoji,
+  reducedMotion,
+}: {
+  gifSlotIndex: number;
+  emoji: string;
+  reducedMotion: boolean | null;
+}) {
+  const [imgReady, setImgReady] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+  const primarySrc =
+    FUNNY_STUDY_LOADING_GIFS[Math.max(0, gifSlotIndex) % FUNNY_STUDY_LOADING_GIFS.length]!;
+  const [displaySrc, setDisplaySrc] = useState<string>(primarySrc);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const triedMediaFallback = useRef(false);
+
+  useEffect(() => {
+    setDisplaySrc(primarySrc);
+    triedMediaFallback.current = false;
+    setImgReady(false);
+    setImgFailed(false);
+  }, [primarySrc]);
+
+  useEffect(() => {
+    const markIfLoaded = () => {
+      const el = imgRef.current;
+      if (el?.complete && el.naturalWidth > 0) setImgReady(true);
+    };
+    const raf = requestAnimationFrame(markIfLoaded);
+    const t = window.setTimeout(markIfLoaded, 50);
+    const safety = window.setTimeout(() => setImgReady(true), 2800);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+      window.clearTimeout(safety);
+    };
+  }, [displaySrc]);
+
+  if (reducedMotion) {
+    return (
+      <div className="text-5xl" aria-hidden>
+        {emoji}
+      </div>
+    );
+  }
+
+  if (imgFailed) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        <div className="text-5xl leading-none" aria-hidden>
+          {emoji}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-full max-w-[min(100%,420px)] flex-col items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src={displaySrc}
+        alt=""
+        loading="eager"
+        decoding="async"
+        onLoad={() => setImgReady(true)}
+        onError={() => {
+          if (!triedMediaFallback.current) {
+            const altUrl = giphyMediaFallbackUrl(displaySrc);
+            triedMediaFallback.current = true;
+            if (altUrl && altUrl !== displaySrc) {
+              setDisplaySrc(altUrl);
+              return;
+            }
+          }
+          setImgFailed(true);
+        }}
+        className={cn(
+          "h-auto w-full max-h-[min(40vh,280px)] object-contain object-center transition-opacity duration-300",
+          imgReady ? "opacity-100" : "opacity-0"
+        )}
+      />
+      <span className="text-4xl leading-none drop-shadow-sm" aria-hidden>
+        {emoji}
+      </span>
+    </div>
+  );
+}
 
 export function StudyMode({ theme }: StudyModeProps) {
   const [studySection, setStudySection] = useState<"practice" | "case" | "journal">("practice");
@@ -584,6 +709,10 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [quizComplete, setQuizComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  /** Random clip; picks again when loading messages rotate (~2s). StudyLoadingGraphic fades each new src. */
+  const [loadingGifSlot, setLoadingGifSlot] = useState(() =>
+    Math.floor(Math.random() * FUNNY_STUDY_LOADING_GIFS.length),
+  );
   const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
   const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
   const [shuffledMatchMsgs, setShuffledMatchMsgs] = useState(MATCH_LOADING_MESSAGES);
@@ -649,31 +778,6 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [journalConfetti, setJournalConfetti] = useState(false);
 
   const reduceMotion = useReducedMotion();
-  const topicStagger = useMemo(() => {
-    if (reduceMotion) {
-      return {
-        container: { hidden: {}, show: { transition: { staggerChildren: 0 } } } as const,
-        item: { hidden: {}, show: {} } as const,
-      };
-    }
-    return {
-      container: {
-        hidden: { opacity: 0 },
-        show: {
-          opacity: 1,
-          transition: { staggerChildren: 0.055, delayChildren: 0.06 },
-        },
-      } as const,
-      item: {
-        hidden: { opacity: 0, y: 14 },
-        show: {
-          opacity: 1,
-          y: 0,
-          transition: { type: "spring" as const, stiffness: 400, damping: 28 },
-        },
-      } as const,
-    };
-  }, [reduceMotion]);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const matchTickRef = useRef<NodeJS.Timeout | null>(null);
@@ -884,6 +988,15 @@ export function StudyMode({ theme }: StudyModeProps) {
     };
   }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
+  const studyLoadBusyLatchRef = useRef(false);
+  useEffect(() => {
+    const busy = loading || matchLoading || caseStudyLoading;
+    if (busy && !studyLoadBusyLatchRef.current) {
+      setLoadingGifSlot(Math.floor(Math.random() * FUNNY_STUDY_LOADING_GIFS.length));
+    }
+    studyLoadBusyLatchRef.current = busy;
+  }, [loading, matchLoading, caseStudyLoading]);
+
   // Shuffle and rotate loading messages (quiz, flashcards, match, or case study)
   useEffect(() => {
     if (!loading && !matchLoading && !caseStudyLoading) {
@@ -897,6 +1010,13 @@ export function StudyMode({ theme }: StudyModeProps) {
 
     const interval = setInterval(() => {
       setLoadingMsgIndex((i) => i + 1);
+      setLoadingGifSlot((prev) => {
+        const n = FUNNY_STUDY_LOADING_GIFS.length;
+        if (n <= 1) return 0;
+        let next = prev;
+        while (next === prev) next = Math.floor(Math.random() * n);
+        return next;
+      });
     }, 2000);
     return () => clearInterval(interval);
   }, [loading, matchLoading, caseStudyLoading]);
@@ -2456,34 +2576,25 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <motion.div
-                          className="grid gap-3 sm:grid-cols-2"
-                          variants={topicStagger.container}
-                          initial="hidden"
-                          animate="show"
-                        >
+                        <div className="grid gap-3 sm:grid-cols-2">
                           {QUIZ_TOPICS.map((topic) => (
-                            <motion.button
+                            <button
                               key={topic.name}
-                              variants={topicStagger.item}
+                              type="button"
                               onClick={() => fetchQuiz(topic.name)}
                               className={cn(
-                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
+                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-colors duration-200",
                                 theme === "dark"
                                   ? "border-white/10 bg-card/60 hover:border-emerald-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/30"
                                   : "border-border/60 bg-card/80 hover:border-emerald-600/30 hover:bg-white hover:shadow-md hover:shadow-emerald-950/10"
                               )}
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.99 }}
                             >
-                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
-                                {topic.icon}
-                              </span>
+                              <span className="text-2xl">{topic.icon}</span>
                               <span className="flex-1 text-sm font-medium">{topic.name}</span>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                            </motion.button>
+                            </button>
                           ))}
-                        </motion.div>
+                        </div>
                       </div>
                     ) : loading ? (
                       <div
@@ -2492,14 +2603,11 @@ export function StudyMode({ theme }: StudyModeProps) {
                         aria-busy="true"
                         aria-label="Loading quiz"
                       >
-                        <motion.div
-                          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                          className="text-5xl"
-                          aria-hidden
-                        >
-                          {shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].emoji}
-                        </motion.div>
+                        <StudyLoadingGraphic
+                          gifSlotIndex={loadingGifSlot}
+                          emoji={shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].emoji}
+                          reducedMotion={reduceMotion}
+                        />
                         <AnimatePresence mode="wait">
                           <motion.p
                             key={loadingMsgIndex}
@@ -2907,44 +3015,33 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </div>
                           </div>
                         ) : null}
-                        <motion.div
-                          className="grid gap-3 sm:grid-cols-2"
-                          variants={topicStagger.container}
-                          initial="hidden"
-                          animate="show"
-                        >
+                        <div className="grid gap-3 sm:grid-cols-2">
                           {CASE_STUDY_TOPICS.map((topic) => (
-                            <motion.button
+                            <button
                               key={topic.name}
-                              variants={topicStagger.item}
+                              type="button"
                               onClick={() => fetchCaseStudy(topic.name)}
                               className={cn(
-                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
+                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-colors duration-200",
                                 theme === "dark"
                                   ? "border-white/10 bg-card/60 hover:border-amber-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/30"
                                   : "border-border/60 bg-card/80 hover:border-amber-600/30 hover:bg-white hover:shadow-md hover:shadow-amber-950/10"
                               )}
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.99 }}
                             >
-                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
-                                {topic.icon}
-                              </span>
+                              <span className="text-2xl">{topic.icon}</span>
                               <span className="flex-1 text-sm font-medium">{topic.name}</span>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                            </motion.button>
+                            </button>
                           ))}
-                        </motion.div>
+                        </div>
                       </div>
                     ) : caseStudyLoading ? (
                       <div className="flex flex-col items-center justify-center py-16">
-                        <motion.div
-                          animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                          className="text-5xl"
-                        >
-                          {shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].emoji}
-                        </motion.div>
+                        <StudyLoadingGraphic
+                          gifSlotIndex={loadingGifSlot}
+                          emoji={shuffledCaseStudyMsgs[loadingMsgIndex % shuffledCaseStudyMsgs.length].emoji}
+                          reducedMotion={reduceMotion}
+                        />
                         <AnimatePresence mode="wait">
                           <motion.p
                             key={loadingMsgIndex}
@@ -3565,48 +3662,37 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <motion.div
-                          className="space-y-3"
-                          variants={topicStagger.container}
-                          initial="hidden"
-                          animate="show"
-                        >
+                        <div className="space-y-3">
                           {FLASHCARD_TOPICS.map((topic) => (
-                            <motion.button
+                            <button
                               key={topic.name}
-                              variants={topicStagger.item}
+                              type="button"
                               onClick={() => fetchFlashcards(topic.name)}
                               className={cn(
-                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
+                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors duration-200",
                                 theme === "dark"
                                   ? "border-white/10 bg-card/60 hover:border-sky-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
                                   : "border-border/60 bg-card/80 hover:border-sky-600/30 hover:bg-white hover:shadow-md hover:shadow-sky-950/10"
                               )}
-                              whileHover={{ scale: 1.005 }}
-                              whileTap={{ scale: 0.995 }}
                             >
-                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
-                                {topic.icon}
-                              </span>
+                              <span className="text-2xl">{topic.icon}</span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
                                 <p className="text-xs text-muted-foreground">New cards each time you open a topic. Deck
                                   length varies.</p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                            </motion.button>
+                            </button>
                           ))}
-                        </motion.div>
+                        </div>
                       </div>
                     ) : loading ? (
                       <div className="flex flex-col items-center justify-center py-16">
-                        <motion.div
-                          animate={{ rotateY: [0, 180, 360] }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="text-5xl"
-                        >
-                          {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
-                        </motion.div>
+                        <StudyLoadingGraphic
+                          gifSlotIndex={loadingGifSlot}
+                          emoji={shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
+                          reducedMotion={reduceMotion}
+                        />
                         <AnimatePresence mode="wait">
                           <motion.p
                             key={loadingMsgIndex}
@@ -3816,29 +3902,20 @@ export function StudyMode({ theme }: StudyModeProps) {
                             </Button>
                           </div>
                         ) : null}
-                        <motion.div
-                          className="space-y-3"
-                          variants={topicStagger.container}
-                          initial="hidden"
-                          animate="show"
-                        >
+                        <div className="space-y-3">
                           {MATCH_TOPICS.map((topic) => (
-                            <motion.button
+                            <button
                               key={topic.name}
-                              variants={topicStagger.item}
+                              type="button"
                               onClick={() => fetchMatchRound(topic.name)}
                               className={cn(
-                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
+                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors duration-200",
                                 theme === "dark"
                                   ? "border-white/10 bg-card/60 hover:border-violet-400/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
                                   : "border-border/60 bg-card/80 hover:border-violet-500/35 hover:bg-white hover:shadow-md hover:shadow-violet-950/10"
                               )}
-                              whileHover={{ scale: 1.005 }}
-                              whileTap={{ scale: 0.995 }}
                             >
-                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
-                                {topic.icon}
-                              </span>
+                              <span className="text-2xl">{topic.icon}</span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
                                 <p className="text-xs text-muted-foreground">
@@ -3846,19 +3923,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 </p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                            </motion.button>
+                            </button>
                           ))}
-                        </motion.div>
+                        </div>
                       </div>
                     ) : matchLoading ? (
                       <div className="flex flex-col items-center justify-center py-16">
-                        <motion.div
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 1.2, repeat: Infinity }}
-                          className="text-5xl"
-                        >
-                          {shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].emoji}
-                        </motion.div>
+                        <StudyLoadingGraphic
+                          gifSlotIndex={loadingGifSlot}
+                          emoji={shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].emoji}
+                          reducedMotion={reduceMotion}
+                        />
                         <AnimatePresence mode="wait">
                           <motion.p
                             key={loadingMsgIndex}
