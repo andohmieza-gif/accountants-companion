@@ -590,7 +590,6 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [shuffledCaseStudyMsgs, setShuffledCaseStudyMsgs] = useState(CASE_STUDY_LOADING_MESSAGES);
   const [streak, setStreak] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [correctFlash, setCorrectFlash] = useState(false);
 
   const [flashcardTopic, setFlashcardTopic] = useState<string | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -1332,8 +1331,6 @@ export function StudyMode({ theme }: StudyModeProps) {
       const newStreak = streak + 1;
       setStreak(newStreak);
       if (newStreak > maxStreak) setMaxStreak(newStreak);
-      setCorrectFlash(true);
-      setTimeout(() => setCorrectFlash(false), 500);
       // Confetti for streaks of 3+
       if (streak >= 2) {
         setShowConfetti(true);
@@ -2630,17 +2627,6 @@ export function StudyMode({ theme }: StudyModeProps) {
                       </>
                     ) : currentQuestion ? (
                       <div className="relative">
-                        <AnimatePresence>
-                          {correctFlash && !reduceMotion ? (
-                            <motion.div
-                              key="quiz-correct-glow"
-                              className="pointer-events-none absolute -inset-3 z-0 rounded-3xl bg-gradient-to-r from-emerald-400/30 via-teal-300/25 to-emerald-400/30"
-                              initial={{ opacity: 0.85, scale: 0.96 }}
-                              animate={{ opacity: 0, scale: 1.05 }}
-                              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                            />
-                          ) : null}
-                        </AnimatePresence>
                         <div className="relative z-10">
                         {/* Confetti for streaks */}
                         <Confetti active={showConfetti} reducedMotion={reduceMotion} />
@@ -2809,7 +2795,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                               exit={{ opacity: 0, y: -10 }}
                               className="mt-6"
                             >
-                              <motion.div
+                              <div
                                 className={cn(
                                   "rounded-xl p-4",
                                   timeRanOut
@@ -2818,8 +2804,6 @@ export function StudyMode({ theme }: StudyModeProps) {
                                       ? "bg-emerald-500/5 border border-emerald-500/20"
                                       : "bg-red-500/5 border border-red-500/20"
                                 )}
-                                initial={{ scale: 0.95 }}
-                                animate={{ scale: 1 }}
                               >
                                 <p className={cn(
                                   "mb-1 text-sm font-semibold",
@@ -2843,7 +2827,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   )}
                                   {currentQuestion.explanation}
                                 </p>
-                              </motion.div>
+                              </div>
                               <div className="mt-4 flex items-center gap-2">
                                 <Button onClick={nextQuestion} className="flex-1 gap-2 rounded-xl">
                                   {currentQuestionIndex < quizQuestions.length - 1 ? (
