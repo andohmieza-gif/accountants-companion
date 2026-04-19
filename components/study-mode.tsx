@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   XCircle,
   ChevronRight,
+  ChevronDown,
   ChevronLeft,
   RotateCcw,
   Loader2,
@@ -32,10 +33,20 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  computeStudyStreak,
+  loadStudyDays,
+  recordStudyDayInStorage,
+} from "@/lib/study-helpers";
 
 // Storage key for study stats
 const STUDY_STATS_KEY = "accountants-companion-study-stats";
 const STUDY_SETTINGS_KEY = "accountants-companion-study-settings";
+const CASE_DRAFT_KEY = "accountants-companion-case-draft";
+const STUDY_ACTIVITY_KEY = "accountants-companion-study-activity";
+const MATCH_BEST_TIME_KEY = "accountants-companion-match-best-times";
+
+type MatchPairCount = 4 | 6 | 8;
 
 type Difficulty = "easy" | "medium" | "hard";
 type StudyStats = {
@@ -54,6 +65,11 @@ type StudySettings = {
   soundEnabled: boolean;
   timedMode: boolean;
   difficulty: Difficulty;
+  /** Quiz: learn with explanations; stats for that quiz are not saved. */
+  quizPracticeMode: boolean;
+  matchPairCount: MatchPairCount;
+  matchTimedChallenge: boolean;
+  caseFeedbackStyle: "coaching" | "exam";
 };
 
 const defaultStats: StudyStats = {
@@ -72,6 +88,10 @@ const defaultSettings: StudySettings = {
   soundEnabled: true,
   timedMode: false,
   difficulty: "medium",
+  quizPracticeMode: false,
+  matchPairCount: 6,
+  matchTimedChallenge: false,
+  caseFeedbackStyle: "coaching",
 };
 
 // Simple sound effects using Web Audio API
@@ -203,8 +223,32 @@ type CaseStudyPayload = {
   scenario: string;
   questions: CaseStudyQuestion[];
   practiceNotes: string;
+  journalPractice?: string;
   discussionQuestions?: string[];
   writtenExercises?: CaseStudyWrittenExercise[];
+};
+
+type McqMistake = {
+  qIndex: number;
+  selected: number;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+};
+
+type CaseDraftV1 = {
+  v: 1;
+  savedAt: number;
+  caseStudyTopic: string;
+  caseStudyPhase: "mcq" | "written" | "results";
+  caseStudyPayload: CaseStudyPayload;
+  caseStudyQIndex: number;
+  caseStudyScore: number;
+  caseStudyWrittenText: string[];
+  caseStudySelected: number | null;
+  caseStudyShowResult: boolean;
+  caseWrittenSelfScore?: (number | null)[];
 };
 
 type CaseStudyWrittenFeedbackSlot = {
@@ -259,8 +303,9 @@ const FLASHCARD_TOPICS = [
 /** Topics for Match mode (dedicated prompts so definitions are not trivial to pair). */
 const MATCH_TOPICS = FLASHCARD_TOPICS;
 
-function buildMatchTilesFromCards(cards: Flashcard[]): MatchTile[] {
-  const subset = cards.slice(0, Math.min(6, cards.length));
+function buildMatchTilesFromCards(cards: Flashcard[], pairCount: number): MatchTile[] {
+  const n = Math.max(2, Math.min(pairCount, cards.length));
+  const subset = cards.slice(0, n);
   const tiles: MatchTile[] = [];
   subset.forEach((card, i) => {
     tiles.push({
@@ -461,14 +506,56 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [stats, setStats] = useState<StudyStats>(defaultStats);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
-  
+  const [studyDays, setStudyDays] = useState<string[]>([]);
+  const [quizMistakes, setQuizMistakes] = useState<McqMistake[]>([]);
+  const [caseMcqMistakes, setCaseMcqMistakes] = useState<McqMistake[]>([]);
+  const [journalCaseHint, setJournalCaseHint] = useState<string | null>(null);
+  const [caseScenarioOpen, setCaseScenarioOpen] = useState(true);
+  const [caseWrittenSelfScore, setCaseWrittenSelfScore] = useState<(number | null)[]>([]);
+  const [flashcardHardQueue, setFlashcardHardQueue] = useState<number[]>([]);
+  const [matchElapsed, setMatchElapsed] = useState(0);
+  const [matchCombo, setMatchCombo] = useState(0);
+  const [matchBestSession, setMatchBestSession] = useState<number | null>(null);
+  const [pendingCaseDraft, setPendingCaseDraft] = useState<CaseDraftV1 | null>(null);
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const matchTickRef = useRef<NodeJS.Timeout | null>(null);
+  const caseDraftSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Load settings and stats from localStorage
   useEffect(() => {
     try {
       const savedSettings = localStorage.getItem(STUDY_SETTINGS_KEY);
-      if (savedSettings) setSettings(JSON.parse(savedSettings));
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings) as Partial<StudySettings>;
+          const mpc = parsed.matchPairCount;
+          const pairOk = mpc === 4 || mpc === 6 || mpc === 8;
+          setSettings({
+            ...defaultSettings,
+            ...parsed,
+            matchPairCount: pairOk ? mpc : defaultSettings.matchPairCount,
+            caseFeedbackStyle:
+              parsed.caseFeedbackStyle === "exam" ? "exam" : "coaching",
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+
+      setStudyDays(loadStudyDays(STUDY_ACTIVITY_KEY));
+
+      try {
+        const draftRaw = localStorage.getItem(CASE_DRAFT_KEY);
+        if (draftRaw) {
+          const d = JSON.parse(draftRaw) as CaseDraftV1;
+          if (d?.v === 1 && d.caseStudyPayload && Date.now() - d.savedAt < 30 * 60 * 60 * 1000) {
+            setPendingCaseDraft(d);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
       
       const savedStats = localStorage.getItem(STUDY_STATS_KEY);
       if (savedStats) {
@@ -563,6 +650,24 @@ export function StudyMode({ theme }: StudyModeProps) {
     }, 2000);
     return () => clearInterval(interval);
   }, [loading, matchLoading, caseStudyLoading]);
+
+  useEffect(() => {
+    if (!matchTopic || matchTiles.length === 0 || matchComplete || !settings.matchTimedChallenge) {
+      if (matchTickRef.current) {
+        clearInterval(matchTickRef.current);
+        matchTickRef.current = null;
+      }
+      return;
+    }
+    matchTickRef.current = setInterval(() => setMatchElapsed((s) => s + 1), 1000);
+    return () => {
+      if (matchTickRef.current) {
+        clearInterval(matchTickRef.current);
+        matchTickRef.current = null;
+      }
+    };
+  }, [matchTopic, matchTiles.length, matchComplete, settings.matchTimedChallenge]);
+
   const [isFlipped, setIsFlipped] = useState(false);
 
   const [journalEntries, setJournalEntries] = useState<{ account: string; debit: string; credit: string }[]>([
@@ -579,6 +684,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     setShowResult(false);
     setScore(0);
     setQuizComplete(false);
+    setQuizMistakes([]);
 
     try {
       const res = await fetch("/api/quiz", {
@@ -603,6 +709,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     setFlashcards([]);
     setCurrentCardIndex(0);
     setIsFlipped(false);
+    setFlashcardHardQueue([]);
 
     try {
       const res = await fetch("/api/flashcards", {
@@ -621,75 +728,104 @@ export function StudyMode({ theme }: StudyModeProps) {
     }
   }, []);
 
-  const fetchMatchRound = useCallback(async (topic: string) => {
-    setMatchLoading(true);
-    setMatchTopic(topic);
-    setMatchTiles([]);
-    setMatchMatched(new Set());
-    setMatchSelectedId(null);
-    setMatchComplete(false);
-    setMatchError(null);
+  const fetchMatchRound = useCallback(
+    async (topic: string) => {
+      setMatchLoading(true);
+      setMatchTopic(topic);
+      setMatchTiles([]);
+      setMatchMatched(new Set());
+      setMatchSelectedId(null);
+      setMatchComplete(false);
+      setMatchError(null);
+      setMatchElapsed(0);
+      setMatchCombo(0);
 
-    try {
-      const res = await fetch("/api/flashcards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, forMatch: true }),
-      });
-      if (!res.ok) throw new Error("fetch failed");
-      const data = await res.json();
-      const cards: Flashcard[] = data.flashcards || [];
-      if (cards.length < 2) {
-        setMatchError("Need at least 2 cards to play. Try another topic.");
-        return;
+      const want = settings.matchPairCount;
+      try {
+        const bestRaw = localStorage.getItem(MATCH_BEST_TIME_KEY);
+        const bestMap = bestRaw ? (JSON.parse(bestRaw) as Record<string, number>) : {};
+        const key = `${topic}:${want}`;
+        setMatchBestSession(typeof bestMap[key] === "number" ? bestMap[key] : null);
+      } catch {
+        setMatchBestSession(null);
       }
-      setMatchTiles(buildMatchTilesFromCards(cards));
-    } catch (e) {
-      console.error(e);
-      setMatchError("Could not load cards. Try again.");
-    } finally {
-      setMatchLoading(false);
-    }
-  }, []);
 
-  const fetchCaseStudy = useCallback(async (topic: string) => {
-    setCaseStudyLoading(true);
-    setCaseStudyError(null);
-    setCaseStudyTopic(topic);
-    setCaseStudyPayload(null);
-    setCaseStudyQIndex(0);
-    setCaseStudySelected(null);
-    setCaseStudyShowResult(false);
-    setCaseStudyPhase("mcq");
-    setCaseStudyScore(0);
-    setCaseStudyWrittenText([]);
-    setCaseStudyOutlineVisible([]);
-    setCaseStudyFeedback([]);
+      try {
+        const res = await fetch("/api/flashcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic, forMatch: true }),
+        });
+        if (!res.ok) throw new Error("fetch failed");
+        const data = await res.json();
+        const cards: Flashcard[] = data.flashcards || [];
+        const need = Math.min(want, cards.length);
+        if (cards.length < 2 || need < 2) {
+          setMatchError("Need at least 2 pairs worth of cards. Try another topic.");
+          return;
+        }
+        setMatchTiles(buildMatchTilesFromCards(cards, want));
+      } catch (e) {
+        console.error(e);
+        setMatchError("Could not load cards. Try again.");
+      } finally {
+        setMatchLoading(false);
+      }
+    },
+    [settings.matchPairCount]
+  );
 
-    try {
-      const res = await fetch("/api/case-study", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setCaseStudyError(typeof data.error === "string" ? data.error : "Could not load case study.");
-        return;
+  const fetchCaseStudy = useCallback(
+    async (topic: string, continuation?: { title: string; scenario: string; context: string }) => {
+      setCaseStudyLoading(true);
+      setCaseStudyError(null);
+      setCaseStudyTopic(topic);
+      setCaseStudyPayload(null);
+      setCaseStudyQIndex(0);
+      setCaseStudySelected(null);
+      setCaseStudyShowResult(false);
+      setCaseStudyPhase("mcq");
+      setCaseStudyScore(0);
+      setCaseStudyWrittenText([]);
+      setCaseStudyOutlineVisible([]);
+      setCaseStudyFeedback([]);
+      setCaseMcqMistakes([]);
+      setCaseWrittenSelfScore([]);
+      setCaseScenarioOpen(true);
+      try {
+        localStorage.removeItem(CASE_DRAFT_KEY);
+      } catch {
+        /* ignore */
       }
-      const payload = data as CaseStudyPayload;
-      if (!payload?.scenario || !Array.isArray(payload.questions) || payload.questions.length < 3) {
-        setCaseStudyError("Invalid response. Try again.");
-        return;
+
+      try {
+        const res = await fetch("/api/case-study", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            continuation ? { topic, continuationFrom: continuation } : { topic }
+          ),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setCaseStudyError(typeof data.error === "string" ? data.error : "Could not load case study.");
+          return;
+        }
+        const payload = data as CaseStudyPayload;
+        if (!payload?.scenario || !Array.isArray(payload.questions) || payload.questions.length < 3) {
+          setCaseStudyError("Invalid response. Try again.");
+          return;
+        }
+        setCaseStudyPayload(payload);
+      } catch (e) {
+        console.error(e);
+        setCaseStudyError("Network error. Try again.");
+      } finally {
+        setCaseStudyLoading(false);
       }
-      setCaseStudyPayload(payload);
-    } catch (e) {
-      console.error(e);
-      setCaseStudyError("Network error. Try again.");
-    } finally {
-      setCaseStudyLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const resetCaseStudy = () => {
     setCaseStudyTopic(null);
@@ -703,7 +839,77 @@ export function StudyMode({ theme }: StudyModeProps) {
     setCaseStudyWrittenText([]);
     setCaseStudyOutlineVisible([]);
     setCaseStudyFeedback([]);
+    setCaseMcqMistakes([]);
+    setCaseWrittenSelfScore([]);
+    setCaseScenarioOpen(true);
+    try {
+      localStorage.removeItem(CASE_DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
   };
+
+  const resumeCaseDraft = useCallback(() => {
+    const d = pendingCaseDraft;
+    if (!d) return;
+    setCaseStudyTopic(d.caseStudyTopic);
+    setCaseStudyPayload(d.caseStudyPayload);
+    setCaseStudyPhase(d.caseStudyPhase);
+    setCaseStudyQIndex(d.caseStudyQIndex);
+    setCaseStudyScore(d.caseStudyScore);
+    setCaseStudyWrittenText(d.caseStudyWrittenText);
+    setCaseStudySelected(d.caseStudySelected);
+    setCaseStudyShowResult(d.caseStudyShowResult);
+    const ex = d.caseStudyPayload.writtenExercises ?? [];
+    setCaseStudyOutlineVisible(ex.map(() => false));
+    setCaseStudyFeedback(ex.map(() => ({ loading: false, text: null, error: null })));
+    setCaseWrittenSelfScore(
+      d.caseWrittenSelfScore && d.caseWrittenSelfScore.length === ex.length
+        ? d.caseWrittenSelfScore
+        : ex.map(() => null)
+    );
+    setCaseStudyError(null);
+    setPendingCaseDraft(null);
+    setActiveTab("casestudy");
+  }, [pendingCaseDraft]);
+
+  useEffect(() => {
+    if (!caseStudyPayload || !caseStudyTopic || caseStudyPhase === "results") return;
+    if (caseDraftSaveTimer.current) clearTimeout(caseDraftSaveTimer.current);
+    caseDraftSaveTimer.current = setTimeout(() => {
+      const draft: CaseDraftV1 = {
+        v: 1,
+        savedAt: Date.now(),
+        caseStudyTopic,
+        caseStudyPhase,
+        caseStudyPayload,
+        caseStudyQIndex,
+        caseStudyScore,
+        caseStudyWrittenText,
+        caseStudySelected,
+        caseStudyShowResult,
+        caseWrittenSelfScore,
+      };
+      try {
+        localStorage.setItem(CASE_DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        /* ignore */
+      }
+    }, 500);
+    return () => {
+      if (caseDraftSaveTimer.current) clearTimeout(caseDraftSaveTimer.current);
+    };
+  }, [
+    caseStudyPayload,
+    caseStudyTopic,
+    caseStudyPhase,
+    caseStudyQIndex,
+    caseStudyScore,
+    caseStudyWrittenText,
+    caseStudySelected,
+    caseStudyShowResult,
+    caseWrittenSelfScore,
+  ]);
 
   const handleCaseStudySelect = (index: number) => {
     if (caseStudyShowResult || !caseStudyPayload) return;
@@ -716,6 +922,17 @@ export function StudyMode({ theme }: StudyModeProps) {
       setCaseStudyScore((s) => s + 1);
     } else {
       playSound("wrong", settings.soundEnabled);
+      setCaseMcqMistakes((prev) => [
+        ...prev,
+        {
+          qIndex: caseStudyQIndex,
+          selected: index,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correctIndex,
+          explanation: q.explanation,
+        },
+      ]);
     }
   };
 
@@ -734,6 +951,12 @@ export function StudyMode({ theme }: StudyModeProps) {
       caseStudyQuestionCount: stats.caseStudyQuestionCount + n,
       topicStats,
     });
+    setStudyDays(recordStudyDayInStorage(STUDY_ACTIVITY_KEY));
+    try {
+      localStorage.removeItem(CASE_DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
     setCaseStudyPhase("results");
   };
 
@@ -753,6 +976,7 @@ export function StudyMode({ theme }: StudyModeProps) {
         setCaseStudyFeedback(
           exercises.map(() => ({ loading: false, text: null, error: null }))
         );
+        setCaseWrittenSelfScore(exercises.map(() => null));
         setCaseStudyPhase("written");
       } else {
         finishCaseStudy();
@@ -785,6 +1009,8 @@ export function StudyMode({ theme }: StudyModeProps) {
           exercisePrompt: ex.prompt,
           userAnswer: answer,
           modelOutline: ex.outline,
+          style: settings.caseFeedbackStyle,
+          selfRubricScore: caseWrittenSelfScore[exerciseIndex] ?? undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -834,7 +1060,21 @@ export function StudyMode({ theme }: StudyModeProps) {
     
     setSelectedAnswer(index);
     setShowResult(true);
-    const isCorrect = index === quizQuestions[currentQuestionIndex]?.correctIndex;
+    const qNow = quizQuestions[currentQuestionIndex];
+    const isCorrect = index === qNow?.correctIndex;
+    if (qNow && !isCorrect) {
+      setQuizMistakes((prev) => [
+        ...prev,
+        {
+          qIndex: currentQuestionIndex,
+          selected: index,
+          question: qNow.question,
+          options: qNow.options,
+          correctIndex: qNow.correctIndex,
+          explanation: qNow.explanation,
+        },
+      ]);
+    }
     if (isCorrect) {
       playSound("correct", settings.soundEnabled);
       setScore((s) => s + 1);
@@ -944,25 +1184,28 @@ export function StudyMode({ theme }: StudyModeProps) {
         setTimeLeft(DIFFICULTY_CONFIG[settings.difficulty].time);
       }
     } else {
-      // Quiz complete - save stats
+      // Quiz complete
       playSound("complete", settings.soundEnabled);
       setQuizComplete(true);
-      
-      const topicStats = { ...stats.topicStats };
-      const topic = quizTopic || "Unknown";
-      if (!topicStats[topic]) {
-        topicStats[topic] = { correct: 0, total: 0 };
+      setStudyDays(recordStudyDayInStorage(STUDY_ACTIVITY_KEY));
+
+      if (!settings.quizPracticeMode) {
+        const topicStats = { ...stats.topicStats };
+        const topic = quizTopic || "Unknown";
+        if (!topicStats[topic]) {
+          topicStats[topic] = { correct: 0, total: 0 };
+        }
+        topicStats[topic].correct += score;
+        topicStats[topic].total += quizQuestions.length;
+
+        updateStats({
+          totalQuizzes: stats.totalQuizzes + 1,
+          totalCorrect: stats.totalCorrect + score,
+          totalQuestions: stats.totalQuestions + quizQuestions.length,
+          bestStreak: Math.max(stats.bestStreak, maxStreak),
+          topicStats,
+        });
       }
-      topicStats[topic].correct += score;
-      topicStats[topic].total += quizQuestions.length;
-      
-      updateStats({
-        totalQuizzes: stats.totalQuizzes + 1,
-        totalCorrect: stats.totalCorrect + score,
-        totalQuestions: stats.totalQuestions + quizQuestions.length,
-        bestStreak: Math.max(stats.bestStreak, maxStreak),
-        topicStats,
-      });
     }
   };
 
@@ -975,6 +1218,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     setTimeRanOut(false);
     setScore(0);
     setQuizComplete(false);
+    setQuizMistakes([]);
     setStreak(0);
     setMaxStreak(0);
     setTimeLeft(null);
@@ -984,27 +1228,52 @@ export function StudyMode({ theme }: StudyModeProps) {
     }
   };
 
+  const flashcardMarkAgain = () => {
+    setFlashcardHardQueue((q) => (q.includes(currentCardIndex) ? q : [...q, currentCardIndex]));
+    playSound("tick", settings.soundEnabled);
+  };
+
+  const advanceFlashcard = () => {
+    if (currentCardIndex < flashcards.length - 1) {
+      setCurrentCardIndex((i) => i + 1);
+      setIsFlipped(false);
+      return;
+    }
+    if (flashcardHardQueue.length > 0) {
+      const nextI = flashcardHardQueue[0];
+      setFlashcardHardQueue((q) => q.slice(1));
+      setCurrentCardIndex(nextI);
+      setIsFlipped(false);
+      return;
+    }
+    playSound("complete", settings.soundEnabled);
+    updateStats({
+      totalFlashcards: stats.totalFlashcards + flashcards.length,
+    });
+    setStudyDays(recordStudyDayInStorage(STUDY_ACTIVITY_KEY));
+  };
+
   // Keyboard shortcuts for flashcards
   useEffect(() => {
     const card = flashcards[currentCardIndex];
     if (activeTab !== "flashcards" || !card || loading) return;
-    
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === " ") {
         e.preventDefault();
         setIsFlipped((f) => !f);
-      } else if (e.key === "ArrowRight" && currentCardIndex < flashcards.length - 1) {
-        setCurrentCardIndex((i) => i + 1);
-        setIsFlipped(false);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        advanceFlashcard();
       } else if (e.key === "ArrowLeft" && currentCardIndex > 0) {
         setCurrentCardIndex((i) => i - 1);
         setIsFlipped(false);
       }
     };
-    
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, flashcards, currentCardIndex, loading]);
+  }, [activeTab, flashcards, currentCardIndex, loading, flashcardHardQueue.length]);
 
   const addJournalRow = () => {
     setJournalEntries([...journalEntries, { account: "", debit: "", credit: "" }]);
@@ -1056,6 +1325,10 @@ export function StudyMode({ theme }: StudyModeProps) {
   ];
 
   const matchPairCount = matchTiles.length / 2;
+  const topicsTouched = Object.keys(stats.topicStats).filter(
+    (k) => (stats.topicStats[k]?.total ?? 0) > 0
+  ).length;
+  const studyStreak = computeStudyStreak(studyDays);
 
   const handleMatchTileClick = (tile: MatchTile) => {
     if (matchMatched.has(tile.pairId) || matchComplete) return;
@@ -1081,6 +1354,7 @@ export function StudyMode({ theme }: StudyModeProps) {
 
     if (isPair) {
       playSound("correct", settings.soundEnabled);
+      setMatchCombo((c) => c + 1);
       const next = new Set(matchMatched);
       next.add(tile.pairId);
       setMatchMatched(next);
@@ -1090,9 +1364,26 @@ export function StudyMode({ theme }: StudyModeProps) {
         setMatchComplete(true);
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 2000);
+        setStudyDays(recordStudyDayInStorage(STUDY_ACTIVITY_KEY));
+        if (settings.matchTimedChallenge && matchTopic) {
+          const t = matchElapsed;
+          try {
+            const raw = localStorage.getItem(MATCH_BEST_TIME_KEY);
+            const map: Record<string, number> = raw ? JSON.parse(raw) : {};
+            const key = `${matchTopic}:${settings.matchPairCount}`;
+            if (typeof map[key] !== "number" || t < map[key]) {
+              map[key] = t;
+              localStorage.setItem(MATCH_BEST_TIME_KEY, JSON.stringify(map));
+            }
+            setMatchBestSession(map[key] ?? t);
+          } catch {
+            /* ignore */
+          }
+        }
       }
     } else {
       playSound("wrong", settings.soundEnabled);
+      setMatchCombo(0);
       setMatchSelectedId(null);
     }
   };
@@ -1104,6 +1395,8 @@ export function StudyMode({ theme }: StudyModeProps) {
     setMatchSelectedId(null);
     setMatchComplete(false);
     setMatchError(null);
+    setMatchElapsed(0);
+    setMatchCombo(0);
   };
 
   return (
@@ -1125,7 +1418,18 @@ export function StudyMode({ theme }: StudyModeProps) {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold">Study Mode</h2>
-                  <p className="text-sm text-muted-foreground">Master accounting concepts</p>
+                  <p className="text-sm text-muted-foreground">
+                    Master accounting concepts
+                    {(topicsTouched > 0 || studyStreak > 0) && (
+                      <span className="mt-0.5 block text-xs text-muted-foreground/90">
+                        {topicsTouched > 0
+                          ? `${topicsTouched} topic${topicsTouched === 1 ? "" : "s"} with activity`
+                          : ""}
+                        {topicsTouched > 0 && studyStreak > 0 ? " · " : ""}
+                        {studyStreak > 0 ? `${studyStreak}-day streak` : ""}
+                      </span>
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -1213,6 +1517,123 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </button>
                       </div>
 
+                      <div className="flex items-center justify-between gap-3 py-1">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Target className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm">Quiz practice mode</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ quizPracticeMode: !settings.quizPracticeMode })}
+                          className={cn(
+                            "relative h-6 w-10 shrink-0 rounded-full transition-colors",
+                            settings.quizPracticeMode ? "bg-emerald-500" : "bg-muted"
+                          )}
+                          aria-pressed={settings.quizPracticeMode}
+                          aria-label="Quiz practice mode: scores are not saved"
+                        >
+                          <motion.div
+                            className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm"
+                            animate={{ left: settings.quizPracticeMode ? 20 : 4 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">Match pairs per round</span>
+                        </div>
+                        <div
+                          role="group"
+                          aria-label="Match pairs per round"
+                          className={cn(
+                            "grid w-full shrink-0 grid-cols-3 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
+                            "bg-muted"
+                          )}
+                        >
+                          {([4, 6, 8] as MatchPairCount[]).map((n) => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => updateSettings({ matchPairCount: n })}
+                              className={cn(
+                                "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
+                                settings.matchPairCount === n
+                                  ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 py-1">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm">Match timer (best time saved)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateSettings({ matchTimedChallenge: !settings.matchTimedChallenge })}
+                          className={cn(
+                            "relative h-6 w-10 shrink-0 rounded-full transition-colors",
+                            settings.matchTimedChallenge ? "bg-emerald-500" : "bg-muted"
+                          )}
+                          aria-pressed={settings.matchTimedChallenge}
+                          aria-label="Match timed challenge"
+                        >
+                          <motion.div
+                            className="absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm"
+                            animate={{ left: settings.matchTimedChallenge ? 20 : 4 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <PenLine className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="text-sm font-medium">Case written feedback</span>
+                        </div>
+                        <div
+                          role="group"
+                          aria-label="Case AI feedback style"
+                          className={cn(
+                            "grid w-full shrink-0 grid-cols-2 gap-1 rounded-lg p-0.5 sm:flex sm:w-auto",
+                            "bg-muted"
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ caseFeedbackStyle: "coaching" })}
+                            className={cn(
+                              "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
+                              settings.caseFeedbackStyle === "coaching"
+                                ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            Coaching
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSettings({ caseFeedbackStyle: "exam" })}
+                            className={cn(
+                              "rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5 sm:py-1",
+                              settings.caseFeedbackStyle === "exam"
+                                ? "bg-card text-foreground shadow-sm ring-1 ring-border"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            Exam-style
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="flex flex-col gap-1.5 py-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex items-center gap-2 sm:gap-3">
                           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -1252,6 +1673,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                           {" "}
                           Now: {DIFFICULTY_CONFIG[settings.difficulty].time}s/question (
                           {DIFFICULTY_CONFIG[settings.difficulty].label}).
+                        </>
+                      )}
+                      {settings.quizPracticeMode && (
+                        <>
+                          {" "}
+                          Practice mode: quiz results are not added to your saved stats.
                         </>
                       )}
                     </p>
@@ -1324,13 +1751,21 @@ export function StudyMode({ theme }: StudyModeProps) {
             </AnimatePresence>
 
             {/* Tabs */}
-            <div className={cn(
-              "mx-0 mb-1 flex shrink-0 gap-1 rounded-xl p-1 sm:mb-0 sm:gap-2 sm:p-1.5",
-              theme === "dark" ? "bg-card" : "bg-muted"
-            )}>
+            <div
+              role="tablist"
+              aria-label="Study activities"
+              className={cn(
+                "mx-0 mb-1 flex shrink-0 gap-1 rounded-xl p-1 sm:mb-0 sm:gap-2 sm:p-1.5",
+                theme === "dark" ? "bg-card" : "bg-muted"
+              )}
+            >
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`study-tab-${tab.id}`}
+                  aria-selected={activeTab === tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   title={tab.description}
                   className={cn(
@@ -1340,7 +1775,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <tab.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <tab.icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
                   <span className="truncate sm:max-w-none">{tab.label}</span>
                 </button>
               ))}
@@ -1385,11 +1820,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                         </div>
                       </div>
                     ) : loading ? (
-                      <div className="flex flex-col items-center justify-center py-16">
+                      <div
+                        className="flex flex-col items-center justify-center py-16"
+                        aria-live="polite"
+                        aria-busy="true"
+                        aria-label="Loading quiz"
+                      >
                         <motion.div
                           animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
                           className="text-5xl"
+                          aria-hidden
                         >
                           {shuffledQuizMsgs[loadingMsgIndex % shuffledQuizMsgs.length].emoji}
                         </motion.div>
@@ -1465,7 +1906,37 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 ? "💪 Good job! Keep practicing."
                                 : "📚 Time to hit the books!"}
                             </p>
+                            {settings.quizPracticeMode ? (
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Practice mode: this quiz was not added to saved stats.
+                              </p>
+                            ) : null}
                           </motion.div>
+                          {quizMistakes.length > 0 ? (
+                            <motion.div
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.25 }}
+                              className="mt-6 w-full max-w-lg text-left"
+                            >
+                              <p className="mb-2 text-sm font-semibold">Review mistakes</p>
+                              <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-border/60 p-3">
+                                {quizMistakes.map((m, idx) => {
+                                  const wrongLabel = m.options[m.selected]?.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "") ?? "";
+                                  const rightLabel =
+                                    m.options[m.correctIndex]?.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "") ?? "";
+                                  return (
+                                    <div key={idx} className="border-b border-border/40 pb-3 text-sm last:border-0 last:pb-0">
+                                      <p className="font-medium text-foreground">{m.question}</p>
+                                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">You chose: {wrongLabel}</p>
+                                      <p className="text-xs text-emerald-600 dark:text-emerald-400">Correct: {rightLabel}</p>
+                                      <p className="mt-1 text-xs text-muted-foreground">{m.explanation}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          ) : null}
                           <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -1533,6 +2004,11 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 </motion.div>
                               )}
                               <span className="font-medium">{score} pts</span>
+                              {settings.quizPracticeMode ? (
+                                <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
+                                  Practice
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                           <div className={cn(
@@ -1551,7 +2027,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                           </div>
                         </div>
 
-                        <p className="mb-6 text-lg font-medium leading-relaxed">{currentQuestion.question}</p>
+                        <p className="mb-6 text-lg font-medium leading-relaxed" id="quiz-question-text">
+                          {currentQuestion.question}
+                        </p>
 
                         <div className="space-y-3">
                           {currentQuestion.options.map((option, i) => {
@@ -1564,6 +2042,10 @@ export function StudyMode({ theme }: StudyModeProps) {
                             return (
                               <motion.button
                                 key={i}
+                                type="button"
+                                role="radio"
+                                aria-checked={isSelected}
+                                aria-label={`Answer ${letter}: ${cleanOption}`}
                                 onClick={() => handleAnswerSelect(i)}
                                 disabled={showResult}
                                 className={cn(
@@ -1683,6 +2165,47 @@ export function StudyMode({ theme }: StudyModeProps) {
                         <p className="mb-5 text-muted-foreground">
                           Real-world scenarios: MCQs, typed tasks with optional AI feedback, and discussion prompts.
                         </p>
+                        {pendingCaseDraft ? (
+                          <div
+                            className={cn(
+                              "mb-5 flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+                              theme === "dark" ? "border-amber-500/30 bg-amber-950/20" : "border-amber-500/40 bg-amber-50/80"
+                            )}
+                          >
+                            <div>
+                              <p className="text-sm font-medium">Resume saved case?</p>
+                              <p className="text-xs text-muted-foreground">
+                                {pendingCaseDraft.caseStudyPayload.title} ·{" "}
+                                {pendingCaseDraft.caseStudyPhase === "written"
+                                  ? "written practice"
+                                  : pendingCaseDraft.caseStudyPhase === "results"
+                                    ? "results"
+                                    : "multiple choice"}
+                              </p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button type="button" size="sm" className="rounded-lg" onClick={resumeCaseDraft}>
+                                Resume
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="rounded-lg"
+                                onClick={() => {
+                                  setPendingCaseDraft(null);
+                                  try {
+                                    localStorage.removeItem(CASE_DRAFT_KEY);
+                                  } catch {
+                                    /* ignore */
+                                  }
+                                }}
+                              >
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
                         <div className="grid gap-3 sm:grid-cols-2">
                           {CASE_STUDY_TOPICS.map((topic) => (
                             <motion.button
@@ -1819,6 +2342,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   }}
                                   placeholder="Type your response…"
                                   rows={6}
+                                  aria-label={`Written response for exercise ${i + 1}: ${ex.role}`}
                                   className={cn(
                                     "mt-3 w-full resize-y rounded-lg border px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                                     theme === "dark"
@@ -1826,6 +2350,37 @@ export function StudyMode({ theme }: StudyModeProps) {
                                       : "border-input bg-background"
                                   )}
                                 />
+                                <p className="mt-3 text-xs text-muted-foreground">
+                                  Self-check vs. outline (optional, sent with AI feedback)
+                                </p>
+                                <div
+                                  className="mt-1 flex flex-wrap gap-1"
+                                  role="group"
+                                  aria-label="How well your draft covers the sample outline"
+                                >
+                                  {[1, 2, 3, 4, 5].map((n) => (
+                                    <button
+                                      key={n}
+                                      type="button"
+                                      onClick={() =>
+                                        setCaseWrittenSelfScore((prev) => {
+                                          const next = [...prev];
+                                          next[i] = n;
+                                          return next;
+                                        })
+                                      }
+                                      className={cn(
+                                        "h-8 min-w-[2rem] rounded-md border text-xs font-medium transition-colors",
+                                        caseWrittenSelfScore[i] === n
+                                          ? "border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300"
+                                          : "border-border bg-background text-muted-foreground hover:bg-muted"
+                                      )}
+                                      aria-pressed={caseWrittenSelfScore[i] === n}
+                                    >
+                                      {n}
+                                    </button>
+                                  ))}
+                                </div>
                                 <div className="mt-3 flex flex-wrap gap-2">
                                   <Button
                                     type="button"
@@ -1945,6 +2500,70 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 </ol>
                               </div>
                             )}
+                          {caseMcqMistakes.length > 0 ? (
+                            <div className="mt-4 w-full text-left">
+                              <p className="mb-2 text-sm font-semibold">MCQ review</p>
+                              <div className="max-h-52 space-y-3 overflow-y-auto rounded-xl border border-border/60 p-3 text-sm">
+                                {caseMcqMistakes.map((m, idx) => {
+                                  const wrongLabel =
+                                    m.options[m.selected]?.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "") ?? "";
+                                  const rightLabel =
+                                    m.options[m.correctIndex]?.replace(/^[A-Da-d][\)\.\-\:]\s*/i, "") ?? "";
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="border-b border-border/40 pb-3 last:border-0 last:pb-0"
+                                    >
+                                      <p className="font-medium text-foreground">{m.question}</p>
+                                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                                        You chose: {wrongLabel}
+                                      </p>
+                                      <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                                        Correct: {rightLabel}
+                                      </p>
+                                      <p className="mt-1 text-xs text-muted-foreground">{m.explanation}</p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+                            {caseStudyTopic ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                className="gap-2 rounded-xl"
+                                onClick={() => {
+                                  if (!caseStudyPayload || !caseStudyTopic) return;
+                                  fetchCaseStudy(caseStudyTopic, {
+                                    title: caseStudyPayload.title,
+                                    scenario: caseStudyPayload.scenario,
+                                    context: caseStudyPayload.context,
+                                  });
+                                }}
+                              >
+                                Next chapter (same company)
+                                <ArrowRight className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                            {caseStudyPayload.journalPractice ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                className="gap-2 rounded-xl"
+                                onClick={() => {
+                                  setJournalCaseHint(caseStudyPayload.journalPractice ?? null);
+                                  setActiveTab("journal");
+                                }}
+                              >
+                                <FileSpreadsheet className="h-4 w-4" />
+                                Practice in Journal
+                              </Button>
+                            ) : null}
+                          </div>
                           <Button onClick={resetCaseStudy} size="lg" className="mt-8 gap-2 self-center rounded-xl px-6">
                             <RotateCcw className="h-4 w-4" />
                             Another case
@@ -1985,20 +2604,36 @@ export function StudyMode({ theme }: StudyModeProps) {
 
                         <div
                           className={cn(
-                            "mb-6 max-h-[40vh] overflow-y-auto rounded-xl border p-4 text-sm leading-relaxed",
+                            "mb-4 rounded-xl border text-sm leading-relaxed",
                             theme === "dark" ? "border-border bg-card/50" : "border-border/60 bg-muted/30"
                           )}
                         >
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="font-semibold">{caseStudyPayload.title}</span>
-                          </div>
-                          <p className="mb-3 text-xs text-muted-foreground">{caseStudyPayload.context}</p>
-                          <div className="space-y-3 text-muted-foreground">
-                            {caseStudyPayload.scenario.split(/\n\n+/).map((para, i) => (
-                              <p key={i}>{para.trim()}</p>
-                            ))}
-                          </div>
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                            onClick={() => setCaseScenarioOpen((o) => !o)}
+                            aria-expanded={caseScenarioOpen}
+                            aria-controls="case-scenario-panel"
+                          >
+                            <span className="flex items-center gap-2 font-semibold">
+                              <Briefcase className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              {caseStudyPayload.title}
+                            </span>
+                            <ChevronDown
+                              className={cn("h-4 w-4 shrink-0 transition-transform", caseScenarioOpen && "rotate-180")}
+                            />
+                          </button>
+                          {caseScenarioOpen ? (
+                            <div
+                              id="case-scenario-panel"
+                              className="max-h-[min(40vh,22rem)] space-y-3 overflow-y-auto border-t border-border/50 px-4 py-3 text-muted-foreground"
+                            >
+                              <p className="text-xs text-muted-foreground">{caseStudyPayload.context}</p>
+                              {caseStudyPayload.scenario.split(/\n\n+/).map((para, i) => (
+                                <p key={i}>{para.trim()}</p>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
 
                         <p className="mb-4 text-lg font-medium leading-relaxed">{currentCaseStudyQ.question}</p>
@@ -2012,6 +2647,10 @@ export function StudyMode({ theme }: StudyModeProps) {
                             return (
                               <motion.button
                                 key={i}
+                                type="button"
+                                role="radio"
+                                aria-checked={isSelected}
+                                aria-label={`Case answer ${letter}: ${cleanOption}`}
                                 onClick={() => handleCaseStudySelect(i)}
                                 disabled={caseStudyShowResult}
                                 className={cn(
@@ -2088,7 +2727,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                                 </p>
                                 <p className="text-sm text-muted-foreground">{currentCaseStudyQ.explanation}</p>
                               </motion.div>
-                              <div className="mt-4 flex items-center gap-2">
+                              <div className="sticky bottom-0 z-10 mt-4 flex items-center gap-2 border-t border-border/40 bg-background/90 py-3 backdrop-blur-sm supports-[backdrop-filter]:bg-background/75">
                                 <Button onClick={nextCaseStudyQuestion} className="flex-1 gap-2 rounded-xl">
                                   {caseStudyQIndex < caseStudyPayload.questions.length - 1 ? (
                                     <>
@@ -2191,9 +2830,11 @@ export function StudyMode({ theme }: StudyModeProps) {
                       <div>
                         <div className="mb-4 flex items-center justify-between">
                           <button
+                            type="button"
                             onClick={() => {
                               setFlashcardTopic(null);
                               setFlashcards([]);
+                              setFlashcardHardQueue([]);
                             }}
                             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
                           >
@@ -2261,6 +2902,28 @@ export function StudyMode({ theme }: StudyModeProps) {
                           </motion.div>
                         </div>
 
+                        {isFlipped ? (
+                          <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="rounded-lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flashcardMarkAgain();
+                              }}
+                            >
+                              Again (review later)
+                            </Button>
+                            {flashcardHardQueue.length > 0 ? (
+                              <span className="text-xs text-muted-foreground">
+                                In queue: {flashcardHardQueue.length}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+
                         <div className="flex items-center gap-3">
                           <Button
                             variant="outline"
@@ -2277,23 +2940,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                           <span className="hidden text-xs text-muted-foreground/50 sm:block">
                             ← →
                           </span>
-                          <Button
-                            className="flex-1 rounded-xl"
-                            disabled={currentCardIndex === flashcards.length - 1}
-                            onClick={() => {
-                              const isLast = currentCardIndex === flashcards.length - 2;
-                              setCurrentCardIndex((i) => i + 1);
-                              setIsFlipped(false);
-                              // Track flashcard review on last card
-                              if (isLast) {
-                                playSound("complete", settings.soundEnabled);
-                                updateStats({
-                                  totalFlashcards: stats.totalFlashcards + flashcards.length,
-                                });
-                              }
-                            }}
-                          >
-                            <span className="hidden sm:inline">Next</span>
+                          <Button className="flex-1 rounded-xl" onClick={() => advanceFlashcard()}>
+                            <span className="hidden sm:inline">
+                              {currentCardIndex === flashcards.length - 1 && flashcardHardQueue.length === 0
+                                ? "Finish"
+                                : "Next"}
+                            </span>
                             <ChevronRight className="ml-1 h-4 w-4" />
                           </Button>
                         </div>
@@ -2334,7 +2986,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                               <span className="text-2xl">{topic.icon}</span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
-                                <p className="text-xs text-muted-foreground">6 pairs per round</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Up to {settings.matchPairCount} pairs per round
+                                </p>
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
@@ -2391,9 +3045,20 @@ export function StudyMode({ theme }: StudyModeProps) {
                             <ChevronLeft className="h-4 w-4" />
                             Topics
                           </button>
-                          <p className="truncate text-center text-xs text-muted-foreground sm:text-sm">
-                            {matchTopic} · {matchMatched.size}/{matchPairCount} pairs
-                          </p>
+                          <div className="min-w-0 flex-1 text-center text-xs text-muted-foreground sm:text-sm">
+                            <p className="truncate font-medium text-foreground">
+                              {matchTopic} · {matchMatched.size}/{matchPairCount} pairs
+                            </p>
+                            {(settings.matchTimedChallenge || matchCombo > 1) && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                {settings.matchTimedChallenge ? <>Time {matchElapsed}s</> : null}
+                                {settings.matchTimedChallenge && matchBestSession != null ? (
+                                  <> · Best {matchBestSession}s</>
+                                ) : null}
+                                {matchCombo > 1 ? <> · Streak {matchCombo}</> : null}
+                              </p>
+                            )}
+                          </div>
                           <Button
                             type="button"
                             variant="ghost"
@@ -2426,6 +3091,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                                   setMatchComplete(false);
                                   setMatchMatched(new Set());
                                   setMatchSelectedId(null);
+                                  setMatchElapsed(0);
+                                  setMatchCombo(0);
                                   matchTopic && fetchMatchRound(matchTopic);
                                 }}
                               >
@@ -2502,12 +3169,33 @@ export function StudyMode({ theme }: StudyModeProps) {
                         Practice creating balanced journal entries
                       </p>
                       <button
+                        type="button"
                         onClick={clearJournal}
                         className="text-sm text-muted-foreground hover:text-foreground"
                       >
                         Clear all
                       </button>
                     </div>
+
+                    {journalCaseHint ? (
+                      <div
+                        className={cn(
+                          "mb-4 rounded-xl border p-3 text-sm",
+                          theme === "dark" ? "border-emerald-500/25 bg-emerald-950/15" : "border-emerald-500/30 bg-emerald-50/90"
+                        )}
+                        role="status"
+                      >
+                        <p className="font-medium text-foreground">From your case</p>
+                        <p className="mt-1 text-muted-foreground">{journalCaseHint}</p>
+                        <button
+                          type="button"
+                          className="mt-2 text-xs font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
+                          onClick={() => setJournalCaseHint(null)}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    ) : null}
 
                     <div className={cn(
                       "overflow-hidden rounded-xl border",

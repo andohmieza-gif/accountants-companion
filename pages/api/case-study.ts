@@ -5,6 +5,12 @@ const openai = new OpenAI();
 
 type CaseStudyRequestBody = {
   topic?: string;
+  /** Optional: generate a follow-on chapter for the same entity and fact pattern. */
+  continuationFrom?: {
+    title?: string;
+    scenario?: string;
+    context?: string;
+  };
 };
 
 const SYSTEM = `You write realistic U.S. GAAP-focused accounting case studies for CPA candidates and working accountants.
@@ -30,6 +36,7 @@ Return ONLY valid JSON with this exact shape:
     }
   ],
   "practiceNotes": "2–4 sentences: what a professional would watch for next, document, or escalate in the real world.",
+  "journalPractice": "one line: a concrete journal-entry practice prompt tied to this case (e.g. 'Record the year-end accrual for…').",
   "discussionQuestions": ["open-ended prompt 1", "open-ended prompt 2", "open-ended prompt 3"],
   "writtenExercises": [
     {
@@ -44,7 +51,9 @@ Generate exactly 5 scored multiple-choice questions. correctIndex must be 0–3.
 
 Provide exactly 3 "discussionQuestions": short, open-ended prompts for reflection or group study.
 
-Provide exactly 2 "writtenExercises". Each must feel like real work product practice (not trivia): different angles (e.g. risk + procedures, or accounting treatment + disclosure). "outline" must have 3–6 distinct, substantive bullets tied to the scenario.`;
+Provide exactly 2 "writtenExercises". Each must feel like real work product practice (not trivia): different angles (e.g. risk + procedures, or accounting treatment + disclosure). "outline" must have 3–6 distinct, substantive bullets tied to the scenario.
+
+Always include "journalPractice": one short, concrete journal-entry exercise prompt tied to this scenario.`;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -52,11 +61,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body = (typeof req.body === "object" && req.body !== null ? req.body : {}) as CaseStudyRequestBody;
-  const { topic } = body;
+  const { topic, continuationFrom } = body;
 
   if (!topic) {
     return res.status(400).json({ error: "Topic is required" });
   }
+
+  const cont = continuationFrom;
+  const isContinuation =
+    cont &&
+    typeof cont.title === "string" &&
+    typeof cont.scenario === "string" &&
+    cont.title.trim().length > 0 &&
+    cont.scenario.trim().length > 0;
+
+  const userContent =
+    isContinuation && cont
+      ? `Topic / theme: ${topic}
+
+CONTINUATION: Build the NEXT chapter for the SAME fictional company and storyline below. Advance time, events, or issues logically (new transaction, quarter-end, audit finding, tax issue, etc.). Do not restart from scratch; readers already know the prior case.
+
+Prior title: ${cont.title}
+Prior context: ${typeof cont.context === "string" ? cont.context : "(none)"}
+Prior scenario (for continuity):
+${(cont.scenario ?? "").slice(0, 12000)}
+
+Return fresh MCQs and exercises that depend on BOTH prior and new facts.`
+      : `Topic / theme for this case study: ${topic}\n\nVary the fact pattern so it does not resemble generic textbook examples.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -66,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         { role: "system", content: SYSTEM },
         {
           role: "user",
-          content: `Topic / theme for this case study: ${topic}\n\nVary the fact pattern so it does not resemble generic textbook examples.`,
+          content: userContent,
         },
       ],
       temperature: 0.85,
@@ -89,6 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         explanation?: string;
       }>;
       practiceNotes?: string;
+      journalPractice?: string;
       discussionQuestions?: unknown;
       writtenExercises?: unknown;
     };
@@ -141,12 +173,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .slice(0, 3)
       : [];
 
+    const journalPractice =
+      typeof parsed.journalPractice === "string" && parsed.journalPractice.trim().length > 0
+        ? parsed.journalPractice.trim()
+        : undefined;
+
     return res.status(200).json({
       title: parsed.title,
       context: parsed.context,
       scenario: parsed.scenario,
       questions,
       practiceNotes: parsed.practiceNotes,
+      ...(journalPractice ? { journalPractice } : {}),
       ...(discussionQuestions.length > 0 ? { discussionQuestions } : {}),
       ...(writtenExercises.length > 0 ? { writtenExercises } : {}),
     });
