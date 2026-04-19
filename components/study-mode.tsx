@@ -298,6 +298,25 @@ const QUIZ_LOADING_MESSAGES = [
   { text: "This is gonna be good...", emoji: "😎" },
   { text: "Loading CPA-level difficulty...", emoji: "💪" },
   { text: "Calibrating brain cells...", emoji: "🧬" },
+  { text: "Accruing more patience (and questions)...", emoji: "⏳" },
+  { text: "Telling the spreadsheet it's definitely not 'just a phase'...", emoji: "📗" },
+  { text: "Explaining to management why we can't 'just round'...", emoji: "🤷" },
+  { text: "Convincing the trial balance to behave...", emoji: "🙏" },
+  { text: "Rolling forward last year's jokes… I mean, workpapers…", emoji: "📎" },
+  { text: "Materiality: low for this loader, high for your ego after a perfect score", emoji: "📏" },
+  { text: "Asking the partner for sign-off (they're busy; we're generating quizzes)", emoji: "✍️" },
+  { text: "Capitalizing fun, expensing stress — GAAP says no, we say maybe", emoji: "😅" },
+  { text: "Footnotes: there will be jokes. Substance over form.", emoji: "📝" },
+  { text: "Impairment testing your attention span…", emoji: "🔋" },
+  { text: "Reconciling you vs. the answer key (friendly fire)", emoji: "🤝" },
+  { text: "Substantive procedures on procrastination… inconclusive", emoji: "🛋️" },
+  { text: "Cash basis: how we pay for pizza. Accrual basis: how we study.", emoji: "🍕" },
+  { text: "If debits and credits had a podcast, you'd be episode one", emoji: "🎙️" },
+  { text: "Sampling your brain for relevant assertions…", emoji: "🧠" },
+  { text: "Independence threat: we're rooting for you anyway", emoji: "🦸" },
+  { text: "Work-in-progress: like inventory, but with questions", emoji: "🏭" },
+  { text: "Tick-and-tie, but make it multiple choice", emoji: "✔️" },
+  { text: "Going concern: you, after this quiz (you'll be fine)", emoji: "☕" },
 ];
 
 const FLASHCARD_LOADING_MESSAGES = [
@@ -317,6 +336,40 @@ const FLASHCARD_LOADING_MESSAGES = [
   { text: "Your brain will thank you...", emoji: "🙏" },
   { text: "Study smarter, not harder...", emoji: "🚀" },
   { text: "Flash! Ahh-ahh...", emoji: "⚡" },
+  { text: "Compressing GAAP into snack size (do not eat the cards)", emoji: "🍿" },
+  { text: "Front: term. Back: the thing you swear you knew yesterday", emoji: "🪞" },
+  { text: "Turning paragraphs into punchy one-liners…", emoji: "🥊" },
+  { text: "Memorize now, impress people at parties later (results may vary)", emoji: "🎉" },
+  { text: "Spaced repetition called — it wants its royalties", emoji: "📞" },
+  { text: "If flashcards were currency, you'd be rich soon", emoji: "💰" },
+  { text: "Loading… like closing the books, but faster", emoji: "⏱️" },
+  { text: "Your future self is already grateful (slightly smug)", emoji: "🦚" },
+  { text: "Index cards wish they were this digital", emoji: "💳" },
+  { text: "Mnemonics loading… or however you pronounce that", emoji: "🔤" },
+  { text: "Flip phone era is over; flip cards era is now", emoji: "📱" },
+  { text: "Cramming ethically (oxymoron, but we try)", emoji: "⚖️" },
+  { text: "Synapses doing light cardio…", emoji: "🏃‍♀️" },
+  { text: "TL;DR machine go brrr (politely)", emoji: "🤖" },
+  { text: "Flashcards: the original stack overflow", emoji: "📚" },
+  { text: "Still better than rereading chapter 12 for the fifth time", emoji: "😵" },
+  { text: "Packaging dopamine with depreciation facts", emoji: "🎁" },
+];
+
+const MATCH_LOADING_MESSAGES = [
+  { text: "Shuffling pairs like a deck of journal lines...", emoji: "🃏" },
+  { text: "Making sure term doesn't marry term (awkward audit finding)", emoji: "💒" },
+  { text: "Speed-dating definitions with concepts…", emoji: "💘" },
+  { text: "Matching harder than bank rec on a Friday…", emoji: "🏦" },
+  { text: "Linking like it's VLOOKUP but you're the formula", emoji: "🔗" },
+  { text: "Pairs: not just for socks and audit samples", emoji: "🧦" },
+  { text: "Tile entropy approaching maximum fun…", emoji: "🎲" },
+  { text: "Reconciling left brain with right brain…", emoji: "🧠" },
+  { text: "Almost ready — stretch those click fingers", emoji: "🖱️" },
+  { text: "If this were Excel, we'd merge cells (we won't)", emoji: "📗" },
+  { text: "Building bridges between words and meanings…", emoji: "🌉" },
+  { text: "Control match: design effective, operation hilarious", emoji: "🎮" },
+  { text: "Two columns enter, one truth leaves", emoji: "🥊" },
+  { text: "Memorization meets memory game…", emoji: "🧩" },
 ];
 
 const CASE_STUDY_LOADING_MESSAGES = [
@@ -328,6 +381,23 @@ const CASE_STUDY_LOADING_MESSAGES = [
   { text: "Sharpening professional judgment...", emoji: "🎯" },
   { text: "Checking materiality (metaphorically)...", emoji: "🔍" },
   { text: "This one could happen on the job...", emoji: "💼" },
+  { text: "Inventing a company that definitely isn't your employer…", emoji: "🏢" },
+  { text: "Adding drama (the professional kind)", emoji: "🎭" },
+  { text: "Client says 'it's immaterial' — we say 'nice try'", emoji: "🍿" },
+  { text: "Watering the facts until they grow into a narrative", emoji: "🌱" },
+  { text: "Related parties: fictional, but the stress is real", emoji: "👯" },
+  { text: "Writing the memo you'd actually want to read", emoji: "✍️" },
+  { text: "Simulating busy season without the overtime", emoji: "🌙" },
+  { text: "Professional skepticism: loading… 47%", emoji: "🧐" },
+  { text: "If this were a PDF, it'd be 40 pages. You're welcome.", emoji: "📎" },
+  { text: "Escalating issues… to the next loading message", emoji: "📣" },
+  { text: "Substantive procedures on storytelling…", emoji: "📚" },
+  { text: "Management representation letter: 'we're fun' (unsigned)", emoji: "😇" },
+  { text: "Risk assessment: you might actually learn something", emoji: "⚠️" },
+  { text: "Workpaper W-1: Witty banter (required field)", emoji: "🗂️" },
+  { text: "Confirming cash… just kidding, we're still writing the case", emoji: "💵" },
+  { text: "The engagement letter said 'reasonable assurance' — we added jokes", emoji: "📜" },
+  { text: "Brain-friendly font, soul-crushing standards", emoji: "🔤" },
 ];
 
 const shuffleArray = <T,>(arr: T[]): T[] => {
@@ -353,6 +423,7 @@ export function StudyMode({ theme }: StudyModeProps) {
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [shuffledQuizMsgs, setShuffledQuizMsgs] = useState(QUIZ_LOADING_MESSAGES);
   const [shuffledFlashcardMsgs, setShuffledFlashcardMsgs] = useState(FLASHCARD_LOADING_MESSAGES);
+  const [shuffledMatchMsgs, setShuffledMatchMsgs] = useState(MATCH_LOADING_MESSAGES);
   const [shuffledCaseStudyMsgs, setShuffledCaseStudyMsgs] = useState(CASE_STUDY_LOADING_MESSAGES);
   const [streak, setStreak] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -484,6 +555,7 @@ export function StudyMode({ theme }: StudyModeProps) {
     }
     setShuffledQuizMsgs(shuffleArray(QUIZ_LOADING_MESSAGES));
     setShuffledFlashcardMsgs(shuffleArray(FLASHCARD_LOADING_MESSAGES));
+    setShuffledMatchMsgs(shuffleArray(MATCH_LOADING_MESSAGES));
     setShuffledCaseStudyMsgs(shuffleArray(CASE_STUDY_LOADING_MESSAGES));
 
     const interval = setInterval(() => {
@@ -1609,8 +1681,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                     {!caseStudyTopic ? (
                       <div>
                         <p className="mb-5 text-muted-foreground">
-                          Real-world scenarios: multiple-choice, then typed exercises (memo-style tasks, outlines, or
-                          judgment calls) with optional AI feedback — plus discussion prompts.
+                          Real-world scenarios: MCQs, typed tasks with optional AI feedback, and discussion prompts.
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           {CASE_STUDY_TOPICS.map((topic) => (
@@ -2277,7 +2348,7 @@ export function StudyMode({ theme }: StudyModeProps) {
                           transition={{ duration: 1.2, repeat: Infinity }}
                           className="text-5xl"
                         >
-                          {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].emoji}
+                          {shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].emoji}
                         </motion.div>
                         <AnimatePresence mode="wait">
                           <motion.p
@@ -2287,10 +2358,20 @@ export function StudyMode({ theme }: StudyModeProps) {
                             exit={{ opacity: 0, y: -10 }}
                             className="mt-4 text-muted-foreground"
                           >
-                            {shuffledFlashcardMsgs[loadingMsgIndex % shuffledFlashcardMsgs.length].text}
+                            {shuffledMatchMsgs[loadingMsgIndex % shuffledMatchMsgs.length].text}
                           </motion.p>
                         </AnimatePresence>
                         <p className="mt-2 text-xs text-muted-foreground/60">{matchTopic}</p>
+                        <div className="mt-4 flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="h-2 w-2 rounded-full bg-muted-foreground/40"
+                              animate={{ scale: [1, 1.3, 1] }}
+                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     ) : matchError && matchTiles.length === 0 ? (
                       <div className="py-8 text-center">
