@@ -1626,64 +1626,110 @@ export function StudyMode({ theme }: StudyModeProps) {
   return (
           <motion.div
             animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              "relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-border/50 shadow-sm sm:rounded-2xl",
-              theme === "dark" ? "bg-background" : "bg-card"
+              "relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border shadow-xl ring-1 sm:rounded-[1.35rem]",
+              theme === "dark"
+                ? "border-white/10 bg-background/80 shadow-black/50 ring-white/[0.06] backdrop-blur-2xl"
+                : "border-border/55 bg-card/92 shadow-emerald-950/[0.07] ring-black/[0.05] backdrop-blur-2xl"
             )}
           >
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-4 py-3 sm:px-6">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-2xl",
-                  theme === "dark" ? "bg-card" : "bg-muted"
-                )}>
-                  <BookOpen className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold">Study Mode</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Master accounting concepts
-                    {(topicsTouched > 0 || studyStreak > 0) && (
-                      <span className="mt-0.5 block text-xs text-muted-foreground/90">
-                        {topicsTouched > 0
-                          ? `${topicsTouched} topic${topicsTouched === 1 ? "" : "s"} with activity`
-                          : ""}
-                        {topicsTouched > 0 && studyStreak > 0 ? " · " : ""}
-                        {studyStreak > 0 ? `${studyStreak}-day streak` : ""}
-                      </span>
+            <div
+              className={cn(
+                "flex shrink-0 items-center justify-between border-b px-4 py-3.5 sm:px-6 sm:py-4",
+                theme === "dark"
+                  ? "border-white/5 bg-gradient-to-r from-emerald-950/15 via-transparent to-sky-950/10"
+                  : "border-border/45 bg-gradient-to-r from-emerald-50/40 via-transparent to-sky-50/35"
+              )}
+            >
+              <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                <div
+                  className={cn(
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm",
+                    theme === "dark"
+                      ? "bg-gradient-to-br from-emerald-500/25 to-sky-600/15 ring-1 ring-white/10"
+                      : "bg-gradient-to-br from-emerald-500/20 to-sky-500/15 ring-1 ring-emerald-800/10"
+                  )}
+                >
+                  <BookOpen
+                    className={cn(
+                      "h-5 w-5",
+                      theme === "dark" ? "text-emerald-200" : "text-emerald-900"
                     )}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                    Study
                   </p>
+                  <h2 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                    Study Mode
+                  </h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Master accounting concepts</span>
+                    {topicsTouched > 0 ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums",
+                          theme === "dark" ? "bg-white/10 text-emerald-100" : "bg-emerald-100/90 text-emerald-900"
+                        )}
+                      >
+                        {topicsTouched} topic{topicsTouched === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                    {studyStreak > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500/14 px-2 py-0.5 text-[10px] font-semibold text-orange-800 dark:text-orange-200">
+                        <Flame className="h-3 w-3" aria-hidden />
+                        {studyStreak}d streak
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {/* Stats button */}
+              <div
+                className={cn(
+                  "flex shrink-0 items-center gap-0.5 rounded-xl border p-0.5 shadow-sm",
+                  theme === "dark" ? "border-white/10 bg-black/20" : "border-border/50 bg-background/70"
+                )}
+              >
                 <button
+                  type="button"
                   onClick={() => {
                     setShowStats(!showStats);
                     setShowSettings(false);
                   }}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                    showStats ? "bg-card text-foreground" : "hover:bg-muted"
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
+                    showStats
+                      ? theme === "dark"
+                        ? "bg-white/10 text-foreground shadow-inner"
+                        : "bg-white text-foreground shadow-sm ring-1 ring-border/40"
+                      : "text-muted-foreground hover:bg-background/90 hover:text-foreground"
                   )}
                   title="View Stats"
+                  aria-pressed={showStats}
                 >
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  <BarChart3 className="h-4 w-4" />
                 </button>
-                {/* Settings button */}
                 <button
+                  type="button"
                   onClick={() => {
                     setShowSettings(!showSettings);
                     setShowStats(false);
                   }}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors",
-                    showSettings ? "bg-card text-foreground" : "hover:bg-muted"
+                    "flex h-9 w-9 items-center justify-center rounded-lg transition-all",
+                    showSettings
+                      ? theme === "dark"
+                        ? "bg-white/10 text-foreground shadow-inner"
+                        : "bg-white text-foreground shadow-sm ring-1 ring-border/40"
+                      : "text-muted-foreground hover:bg-background/90 hover:text-foreground"
                   )}
                   title="Settings"
+                  aria-pressed={showSettings}
                 >
-                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <Settings className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -1697,9 +1743,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="shrink-0 overflow-x-hidden border-b border-border/40"
+                  className="shrink-0 overflow-x-hidden border-b border-border/40 bg-muted/20 dark:bg-black/20"
                 >
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Preferences
+                    </p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3 py-1">
                         <div className="flex min-w-0 items-center gap-3">
@@ -1917,56 +1966,90 @@ export function StudyMode({ theme }: StudyModeProps) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="shrink-0 overflow-hidden border-b border-border/40"
+                  className="shrink-0 overflow-hidden border-b border-border/40 bg-muted/15 dark:bg-black/15"
                 >
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className={cn(
-                        "rounded-lg p-2 text-center",
-                        "bg-muted"
-                      )}>
-                        <p className="text-xl font-bold">{stats.totalQuizzes}</p>
-                        <p className="text-[10px] text-muted-foreground">Quizzes</p>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Your progress
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">{stats.totalQuizzes}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Quizzes</p>
                       </div>
-                      <div className={cn(
-                        "rounded-lg p-2 text-center",
-                        "bg-muted"
-                      )}>
-                        <p className="text-xl font-bold">
-                          {stats.totalQuestions > 0 
-                            ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100) 
-                            : 0}%
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">
+                          {stats.totalQuestions > 0
+                            ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100)
+                            : 0}
+                          %
                         </p>
-                        <p className="text-[10px] text-muted-foreground">Accuracy</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Accuracy</p>
                       </div>
-                      <div className={cn(
-                        "rounded-lg p-2 text-center",
-                        "bg-muted"
-                      )}>
-                        <p className="text-xl font-bold">{stats.bestStreak}</p>
-                        <p className="text-[10px] text-muted-foreground">Best Streak</p>
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">{stats.bestStreak}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Best streak</p>
                       </div>
-                      <div className={cn(
-                        "rounded-lg p-2 text-center",
-                        "bg-muted"
-                      )}>
-                        <p className="text-xl font-bold">{stats.totalFlashcards}</p>
-                        <p className="text-[10px] text-muted-foreground">Cards</p>
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">{stats.totalFlashcards}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Cards</p>
                       </div>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div className={cn("rounded-lg p-2 text-center", "bg-muted")}>
-                        <p className="text-xl font-bold">{stats.caseStudyCompleted}</p>
-                        <p className="text-[10px] text-muted-foreground">Cases done</p>
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">{stats.caseStudyCompleted}</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Cases done</p>
                       </div>
-                      <div className={cn("rounded-lg p-2 text-center", "bg-muted")}>
-                        <p className="text-xl font-bold">
+                      <div
+                        className={cn(
+                          "rounded-xl border p-3 text-center shadow-sm",
+                          theme === "dark"
+                            ? "border-white/10 bg-white/[0.04]"
+                            : "border-border/50 bg-card/90"
+                        )}
+                      >
+                        <p className="text-xl font-bold tabular-nums">
                           {stats.caseStudyQuestionCount > 0
                             ? Math.round((stats.caseStudyCorrect / stats.caseStudyQuestionCount) * 100)
                             : 0}
                           %
                         </p>
-                        <p className="text-[10px] text-muted-foreground">Case accuracy</p>
+                        <p className="text-[10px] font-medium text-muted-foreground">Case accuracy</p>
                       </div>
                     </div>
                   </div>
@@ -1977,19 +2060,35 @@ export function StudyMode({ theme }: StudyModeProps) {
             {sessionFocusTopic ? (
               <div
                 className={cn(
-                  "flex shrink-0 items-center justify-between gap-3 border-b border-border/40 px-4 py-2 sm:px-6",
-                  theme === "dark" ? "bg-emerald-950/20" : "bg-emerald-50/60"
+                  "flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-6",
+                  theme === "dark"
+                    ? "border-emerald-500/15 bg-gradient-to-r from-emerald-950/45 via-emerald-950/20 to-transparent"
+                    : "border-emerald-200/55 bg-gradient-to-r from-emerald-50 via-teal-50/50 to-transparent"
                 )}
               >
-                <p className="min-w-0 text-xs leading-snug text-muted-foreground">
-                  <span className="font-semibold text-foreground">Focus</span>
-                  <span className="mx-1.5 text-border">·</span>
-                  <span className="text-foreground">{sessionFocusTopic}</span>
+                <p className="flex min-w-0 items-start gap-2 text-xs leading-snug">
+                  <Target
+                    className={cn(
+                      "mt-0.5 h-3.5 w-3.5 shrink-0",
+                      theme === "dark" ? "text-emerald-400" : "text-emerald-700"
+                    )}
+                    aria-hidden
+                  />
+                  <span className="text-muted-foreground">
+                    <span className="font-semibold text-foreground">Focus</span>
+                    <span className="mx-1.5 opacity-40">·</span>
+                    <span className="text-foreground">{sessionFocusTopic}</span>
+                  </span>
                 </p>
                 <button
                   type="button"
                   onClick={() => setSessionFocusTopic(null)}
-                  className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                  className={cn(
+                    "shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                    theme === "dark"
+                      ? "text-emerald-200 hover:bg-white/10"
+                      : "text-emerald-800 hover:bg-emerald-100/80"
+                  )}
                 >
                   Clear
                 </button>
@@ -1999,14 +2098,14 @@ export function StudyMode({ theme }: StudyModeProps) {
             <nav
               aria-label="Study area"
               className={cn(
-                "shrink-0 border-b border-border/40 px-2 pt-2 sm:px-4 sm:pt-2.5",
-                theme === "dark" ? "bg-background/40" : "bg-background/60"
+                "shrink-0 border-b px-2 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3",
+                theme === "dark" ? "border-white/5 bg-black/15" : "border-border/40 bg-muted/30"
               )}
             >
               <div
                 className={cn(
-                  "flex gap-1 rounded-xl p-1 sm:gap-1.5 sm:p-1.5",
-                  theme === "dark" ? "bg-card" : "bg-muted"
+                  "flex gap-1 rounded-2xl p-1 sm:gap-1.5 sm:p-1.5",
+                  theme === "dark" ? "bg-black/25 ring-1 ring-white/5" : "bg-background/80 shadow-inner ring-1 ring-black/[0.04]"
                 )}
               >
                 <button
@@ -2015,10 +2114,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                   onClick={() => setStudySection("practice")}
                   title="Quiz, flashcards, and match"
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all duration-200 sm:gap-2 sm:py-2.5 sm:text-sm",
                     studySection === "practice"
-                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? theme === "dark"
+                        ? "bg-gradient-to-b from-emerald-500/25 to-emerald-600/10 text-emerald-50 shadow-md shadow-emerald-950/30 ring-1 ring-emerald-400/25"
+                        : "bg-white text-emerald-900 shadow-md shadow-emerald-900/10 ring-1 ring-emerald-300/45"
+                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                   )}
                 >
                   <Zap className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
@@ -2030,10 +2131,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                   onClick={() => setStudySection("case")}
                   title="Scenario-based case studies"
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all duration-200 sm:gap-2 sm:py-2.5 sm:text-sm",
                     studySection === "case"
-                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? theme === "dark"
+                        ? "bg-gradient-to-b from-amber-500/20 to-amber-700/10 text-amber-50 shadow-md shadow-amber-950/20 ring-1 ring-amber-400/25"
+                        : "bg-white text-amber-900 shadow-md shadow-amber-900/8 ring-1 ring-amber-300/50"
+                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                   )}
                 >
                   <Briefcase className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
@@ -2045,10 +2148,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                   onClick={() => setStudySection("journal")}
                   title="Practice journal entries"
                   className={cn(
-                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-semibold transition-all sm:gap-2 sm:py-2.5 sm:text-sm",
+                    "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-[11px] font-semibold transition-all duration-200 sm:gap-2 sm:py-2.5 sm:text-sm",
                     studySection === "journal"
-                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/40"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? theme === "dark"
+                        ? "bg-gradient-to-b from-sky-500/20 to-sky-700/10 text-sky-50 shadow-md shadow-sky-950/25 ring-1 ring-sky-400/25"
+                        : "bg-white text-sky-900 shadow-md shadow-sky-900/8 ring-1 ring-sky-300/50"
+                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
                   )}
                 >
                   <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" aria-hidden />
@@ -2061,8 +2166,8 @@ export function StudyMode({ theme }: StudyModeProps) {
                   role="tablist"
                   aria-label="Practice activities"
                   className={cn(
-                    "mt-1.5 flex gap-1 rounded-lg p-0.5 sm:mt-2 sm:gap-1.5 sm:p-1",
-                    theme === "dark" ? "bg-background/80" : "bg-background/90"
+                    "mt-2 flex gap-1 rounded-xl p-0.5 sm:mt-2.5 sm:gap-1 sm:p-1",
+                    theme === "dark" ? "bg-black/20 ring-1 ring-white/5" : "bg-background/70 ring-1 ring-black/[0.04]"
                   )}
                 >
                   {(
@@ -2080,12 +2185,12 @@ export function StudyMode({ theme }: StudyModeProps) {
                       aria-selected={drillTab === row.id}
                       onClick={() => setDrillTab(row.id)}
                       className={cn(
-                        "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-all sm:gap-1.5 sm:px-2 sm:py-2 sm:text-sm",
+                        "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[11px] font-semibold transition-all duration-200 sm:gap-1.5 sm:px-2 sm:py-2 sm:text-sm",
                         drillTab === row.id
                           ? theme === "dark"
-                            ? "bg-card text-foreground shadow-sm ring-1 ring-border/50"
-                            : "bg-muted text-foreground shadow-sm ring-1 ring-border/40"
-                          : "text-muted-foreground hover:text-foreground"
+                            ? "bg-emerald-500/18 text-emerald-50 shadow-sm ring-1 ring-emerald-400/20"
+                            : "bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-200/70"
+                          : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
                       )}
                     >
                       <row.icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" aria-hidden />
@@ -2098,7 +2203,7 @@ export function StudyMode({ theme }: StudyModeProps) {
             </nav>
 
             {/* Content: min-h-0 so this region scrolls instead of clipping header/settings */}
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-6">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-7 sm:py-7">
               <AnimatePresence mode="wait">
                 {/* Quiz Tab */}
                 {activeTab === "quiz" && (
@@ -2111,8 +2216,9 @@ export function StudyMode({ theme }: StudyModeProps) {
                   >
                     {!quizTopic ? (
                       <div>
-                        <p className="mb-5 text-muted-foreground">
-                          Choose a topic to test your knowledge with 10 questions
+                        <p className="mb-5 max-w-md text-sm leading-relaxed text-muted-foreground">
+                          <span className="font-medium text-foreground">Pick a topic</span> — ten questions per run.
+                          Open settings for timed mode or practice (no stat save).
                         </p>
                         {focusQuickQuizTopic ? (
                           <div
@@ -2147,15 +2253,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                               key={topic.name}
                               onClick={() => fetchQuiz(topic.name)}
                               className={cn(
-                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
                                 theme === "dark"
-                                  ? "border-border bg-card hover:border-foreground/20 hover:bg-card/80"
-                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                                  ? "border-white/10 bg-card/60 hover:border-emerald-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/30"
+                                  : "border-border/60 bg-card/80 hover:border-emerald-600/30 hover:bg-white hover:shadow-md hover:shadow-emerald-950/10"
                               )}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
                             >
-                              <span className="text-2xl">{topic.icon}</span>
+                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
+                                {topic.icon}
+                              </span>
                               <span className="flex-1 text-sm font-medium">{topic.name}</span>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
@@ -2566,15 +2674,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                               key={topic.name}
                               onClick={() => fetchCaseStudy(topic.name)}
                               className={cn(
-                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all",
+                                "group flex items-center gap-3 rounded-xl border p-4 text-left transition-all duration-200",
                                 theme === "dark"
-                                  ? "border-border bg-card hover:border-foreground/20 hover:bg-card/80"
-                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                                  ? "border-white/10 bg-card/60 hover:border-amber-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/30"
+                                  : "border-border/60 bg-card/80 hover:border-amber-600/30 hover:bg-white hover:shadow-md hover:shadow-amber-950/10"
                               )}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
+                              whileHover={{ scale: 1.01 }}
+                              whileTap={{ scale: 0.99 }}
                             >
-                              <span className="text-2xl">{topic.icon}</span>
+                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
+                                {topic.icon}
+                              </span>
                               <span className="flex-1 text-sm font-medium">{topic.name}</span>
                               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                             </motion.button>
@@ -3214,15 +3324,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                               key={topic.name}
                               onClick={() => fetchFlashcards(topic.name)}
                               className={cn(
-                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
+                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
                                 theme === "dark"
-                                  ? "border-border bg-card hover:border-foreground/20"
-                                  : "border-border/50 hover:border-foreground/20 hover:shadow-md"
+                                  ? "border-white/10 bg-card/60 hover:border-sky-500/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
+                                  : "border-border/60 bg-card/80 hover:border-sky-600/30 hover:bg-white hover:shadow-md hover:shadow-sky-950/10"
                               )}
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.99 }}
+                              whileHover={{ scale: 1.005 }}
+                              whileTap={{ scale: 0.995 }}
                             >
-                              <span className="text-2xl">{topic.icon}</span>
+                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
+                                {topic.icon}
+                              </span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
                                 <p className="text-xs text-muted-foreground">{topic.count} cards</p>
@@ -3455,15 +3567,17 @@ export function StudyMode({ theme }: StudyModeProps) {
                               key={topic.name}
                               onClick={() => fetchMatchRound(topic.name)}
                               className={cn(
-                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all",
+                                "group flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-all duration-200",
                                 theme === "dark"
-                                  ? "border-border bg-card hover:border-foreground/20"
-                                  : "border-border/70 bg-card hover:border-emerald-800/25 hover:shadow-md"
+                                  ? "border-white/10 bg-card/60 hover:border-violet-400/35 hover:bg-card hover:shadow-lg hover:shadow-black/25"
+                                  : "border-border/60 bg-card/80 hover:border-violet-500/35 hover:bg-white hover:shadow-md hover:shadow-violet-950/10"
                               )}
-                              whileHover={{ scale: 1.01 }}
-                              whileTap={{ scale: 0.99 }}
+                              whileHover={{ scale: 1.005 }}
+                              whileTap={{ scale: 0.995 }}
                             >
-                              <span className="text-2xl">{topic.icon}</span>
+                              <span className="text-2xl transition-transform duration-200 group-hover:scale-105">
+                                {topic.icon}
+                              </span>
                               <div className="flex-1">
                                 <p className="font-medium">{topic.name}</p>
                                 <p className="text-xs text-muted-foreground">

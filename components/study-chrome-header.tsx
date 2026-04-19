@@ -18,10 +18,10 @@ export function StudyChromeHeader({
   return (
     <header
       className={cn(
-        "relative z-10 shrink-0 border-b px-4 py-3 md:px-6",
+        "relative z-10 shrink-0 border-b px-4 py-3 shadow-sm md:px-6",
         theme === "dark"
-          ? "border-emerald-500/10 bg-background/80 backdrop-blur-xl"
-          : "border-emerald-900/10 bg-background/90 backdrop-blur-xl"
+          ? "border-white/10 bg-black/35 backdrop-blur-2xl"
+          : "border-border/50 bg-background/80 shadow-emerald-950/5 backdrop-blur-2xl"
       )}
     >
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
