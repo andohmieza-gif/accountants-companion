@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
@@ -25,6 +25,7 @@ import {
   VolumeX,
   Clock,
   BarChart3,
+  Layers,
   Settings,
   Link2,
   Briefcase,
@@ -567,6 +568,49 @@ const FUNNY_STUDY_LOADING_GIFS = [
   "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXQxYnJxdG41NHB2bHVsM3ppMXNicGlzNmRmaHNjejQzYXhuZ3NhNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/kg716uIDecwuUlmYSx/giphy.gif"
 ] as const;
 
+function pickDistinctStudyGifSlot(prev: number): number {
+  const n = FUNNY_STUDY_LOADING_GIFS.length;
+  if (n <= 1) return 0;
+  let next = prev;
+  while (next === prev) next = Math.floor(Math.random() * n);
+  return next;
+}
+
+const PROGRESS_TILE_TONE: Record<
+  "emerald" | "sky" | "orange" | "violet" | "amber" | "rose",
+  { dark: string; light: string }
+> = {
+  emerald: {
+    dark: "bg-emerald-500/15 text-emerald-400",
+    light: "bg-emerald-100 text-emerald-800",
+  },
+  sky: {
+    dark: "bg-sky-500/15 text-sky-300",
+    light: "bg-sky-100 text-sky-800",
+  },
+  orange: {
+    dark: "bg-orange-500/15 text-orange-400",
+    light: "bg-orange-100 text-orange-800",
+  },
+  violet: {
+    dark: "bg-violet-500/15 text-violet-300",
+    light: "bg-violet-100 text-violet-800",
+  },
+  amber: {
+    dark: "bg-amber-500/15 text-amber-300",
+    light: "bg-amber-100 text-amber-900",
+  },
+  rose: {
+    dark: "bg-rose-500/15 text-rose-300",
+    light: "bg-rose-100 text-rose-800",
+  },
+};
+
+function progressTileIconClass(theme: "light" | "dark", tone: keyof typeof PROGRESS_TILE_TONE) {
+  const p = PROGRESS_TILE_TONE[tone];
+  return cn("mb-2 inline-flex rounded-lg p-1.5", theme === "dark" ? p.dark : p.light);
+}
+
 function giphyMediaFallbackUrl(iGiphyUrl: string): string | null {
   const m = iGiphyUrl.match(/i\.giphy\.com\/([^/.]+)\.gif/i);
   return m?.[1] ? `https://media.giphy.com/media/${m[1]}/giphy.gif` : null;
@@ -1080,19 +1124,6 @@ export function StudyMode({ theme }: StudyModeProps) {
     };
   }, [settings.timedMode, settings.difficulty, quizTopic, currentQuestionIndex, showResult, loading, quizComplete]);
 
-  useLayoutEffect(() => {
-    const busy = loading || matchLoading || caseStudyLoading;
-    if (!busy || reduceMotion) return;
-    if (loadingMsgIndex % 2 !== 1) return;
-    setLoadingGifSlot((prev) => {
-      const n = FUNNY_STUDY_LOADING_GIFS.length;
-      if (n <= 1) return 0;
-      let next = prev;
-      while (next === prev) next = Math.floor(Math.random() * n);
-      return next;
-    });
-  }, [loadingMsgIndex, loading, matchLoading, caseStudyLoading, reduceMotion]);
-
   // Shuffle and rotate loading rhythm: even tick = text+emoji, odd = GIF
   useEffect(() => {
     if (!loading && !matchLoading && !caseStudyLoading) {
@@ -1105,10 +1136,16 @@ export function StudyMode({ theme }: StudyModeProps) {
     setShuffledCaseStudyMsgs(shuffleArray(CASE_STUDY_LOADING_MESSAGES));
 
     const interval = setInterval(() => {
-      setLoadingMsgIndex((i) => i + 1);
+      setLoadingMsgIndex((i) => {
+        const next = i + 1;
+        if (next % 2 === 1 && !reduceMotion) {
+          setLoadingGifSlot((prev) => pickDistinctStudyGifSlot(prev));
+        }
+        return next;
+      });
     }, STUDY_LOADING_BEAT_MS);
     return () => clearInterval(interval);
-  }, [loading, matchLoading, caseStudyLoading]);
+  }, [loading, matchLoading, caseStudyLoading, reduceMotion]);
 
   useEffect(() => {
     if (!matchTopic || matchTiles.length === 0 || matchComplete || !settings.matchTimedChallenge) {
@@ -2387,89 +2424,212 @@ export function StudyMode({ theme }: StudyModeProps) {
                   className="relative z-10 shrink-0 overflow-hidden border-b border-border/40 bg-muted/15 dark:bg-black/15"
                 >
                   <div className="px-4 py-3 sm:px-6 sm:py-4">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Your progress
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="mb-4 flex items-start gap-3">
                       <div
                         className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
+                          "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-md",
                           theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
+                            ? "bg-gradient-to-br from-amber-400/30 via-orange-500/20 to-rose-500/15 ring-1 ring-amber-400/25"
+                            : "bg-gradient-to-br from-amber-100 via-orange-50 to-rose-50 ring-1 ring-amber-200/70"
                         )}
                       >
-                        <p className="text-xl font-bold tabular-nums">{stats.totalQuizzes}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Quizzes</p>
+                        <Trophy
+                          className={cn(
+                            "h-5 w-5",
+                            theme === "dark" ? "text-amber-200" : "text-amber-700"
+                          )}
+                          aria-hidden
+                        />
                       </div>
-                      <div
-                        className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
-                        )}
-                      >
-                        <p className="text-xl font-bold tabular-nums">
-                          {stats.totalQuestions > 0
-                            ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100)
-                            : 0}
-                          %
+                      <div className="min-w-0 flex-1">
+                        <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-foreground">
+                          Your progress
+                          <Sparkles
+                            className={cn(
+                              "h-3.5 w-3.5",
+                              theme === "dark" ? "text-violet-400" : "text-violet-600"
+                            )}
+                            aria-hidden
+                          />
                         </p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Accuracy</p>
-                      </div>
-                      <div
-                        className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
-                        )}
-                      >
-                        <p className="text-xl font-bold tabular-nums">{stats.bestStreak}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Best streak</p>
-                      </div>
-                      <div
-                        className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
-                        )}
-                      >
-                        <p className="text-xl font-bold tabular-nums">{stats.totalFlashcards}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Cards</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          Little wins add up. These numbers stay on this device and cheer you on.
+                        </p>
+                        {studyStreak >= 2 ? (
+                          <p
+                            className={cn(
+                              "mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                              theme === "dark"
+                                ? "bg-orange-500/15 text-orange-300"
+                                : "bg-orange-100 text-orange-800"
+                            )}
+                          >
+                            <Flame className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            {studyStreak} day study streak. Do not break the chain.
+                          </p>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div
-                        className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
-                        )}
-                      >
-                        <p className="text-xl font-bold tabular-nums">{stats.caseStudyCompleted}</p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Cases done</p>
-                      </div>
-                      <div
-                        className={cn(
-                          "rounded-xl border p-3 text-center shadow-sm",
-                          theme === "dark"
-                            ? "border-white/10 bg-white/[0.04]"
-                            : "border-border/50 bg-card/90"
-                        )}
-                      >
-                        <p className="text-xl font-bold tabular-nums">
-                          {stats.caseStudyQuestionCount > 0
-                            ? Math.round((stats.caseStudyCorrect / stats.caseStudyQuestionCount) * 100)
-                            : 0}
-                          %
-                        </p>
-                        <p className="text-[10px] font-medium text-muted-foreground">Case accuracy</p>
-                      </div>
+
+                    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                      {(
+                        [
+                          {
+                            key: "quizzes",
+                            icon: Brain,
+                            tone: "emerald" as const,
+                            value: stats.totalQuizzes,
+                            label: "Quizzes finished",
+                          },
+                          {
+                            key: "quizAcc",
+                            icon: Target,
+                            tone: "sky" as const,
+                            value:
+                              stats.totalQuestions > 0
+                                ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100)
+                                : 0,
+                            suffix: "%",
+                            label: "Quiz hit rate",
+                          },
+                          {
+                            key: "streak",
+                            icon: Flame,
+                            tone: "orange" as const,
+                            value: stats.bestStreak,
+                            label: "Best hot streak",
+                          },
+                          {
+                            key: "cards",
+                            icon: Layers,
+                            tone: "violet" as const,
+                            value: stats.totalFlashcards,
+                            label: "Cards reviewed",
+                          },
+                          {
+                            key: "cases",
+                            icon: Briefcase,
+                            tone: "amber" as const,
+                            value: stats.caseStudyCompleted,
+                            label: "Cases completed",
+                          },
+                          {
+                            key: "caseAcc",
+                            icon: Award,
+                            tone: "rose" as const,
+                            value:
+                              stats.caseStudyQuestionCount > 0
+                                ? Math.round(
+                                    (stats.caseStudyCorrect / stats.caseStudyQuestionCount) * 100
+                                  )
+                                : 0,
+                            suffix: "%",
+                            label: "Case hit rate",
+                          },
+                        ] as const
+                      ).map((tile, i) => {
+                        const Icon = tile.icon;
+                        const suffix = "suffix" in tile ? tile.suffix : "";
+                        return (
+                          <motion.div
+                            key={tile.key}
+                            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                              delay: reduceMotion ? 0 : 0.05 + i * 0.04,
+                              type: "spring",
+                              stiffness: 380,
+                              damping: 28,
+                            }}
+                            className={cn(
+                              "relative overflow-hidden rounded-2xl border p-3 text-left shadow-sm",
+                              theme === "dark"
+                                ? "border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.02]"
+                                : "border-border/50 bg-gradient-to-b from-card to-card/80"
+                            )}
+                          >
+                            {!reduceMotion ? (
+                              <div
+                                className={cn(
+                                  "pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full opacity-[0.14] blur-2xl",
+                                  tile.tone === "emerald" && "bg-emerald-400",
+                                  tile.tone === "sky" && "bg-sky-400",
+                                  tile.tone === "orange" && "bg-orange-400",
+                                  tile.tone === "violet" && "bg-violet-400",
+                                  tile.tone === "amber" && "bg-amber-400",
+                                  tile.tone === "rose" && "bg-rose-400"
+                                )}
+                                aria-hidden
+                              />
+                            ) : null}
+                            <div className={progressTileIconClass(theme, tile.tone)}>
+                              <Icon className="h-3.5 w-3.5" aria-hidden />
+                            </div>
+                            <p className="relative text-xl font-bold tabular-nums leading-none text-foreground">
+                              {tile.value}
+                              {suffix}
+                            </p>
+                            <p className="relative mt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              {tile.label}
+                            </p>
+                          </motion.div>
+                        );
+                      })}
                     </div>
+
+                    {gradedAccuracyPct !== null ? (
+                      <motion.div
+                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: reduceMotion ? 0 : 0.35, duration: 0.3 }}
+                        className={cn(
+                          "relative mt-4 overflow-hidden rounded-2xl border p-3 shadow-sm",
+                          theme === "dark"
+                            ? "border-emerald-500/20 bg-emerald-950/25"
+                            : "border-emerald-200/70 bg-gradient-to-br from-emerald-50/90 to-teal-50/50"
+                        )}
+                      >
+                        <div className="relative flex items-center justify-between gap-2 text-xs">
+                          <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                            <BarChart3 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                            All tracked answers
+                          </span>
+                          <span className="shrink-0 font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                            {gradedAccuracyPct}%
+                          </span>
+                        </div>
+                        <div
+                          className={cn(
+                            "relative mt-2.5 h-2 overflow-hidden rounded-full ring-1 ring-black/5 dark:ring-white/10",
+                            theme === "dark" ? "bg-black/30" : "bg-emerald-100/80"
+                          )}
+                        >
+                          <motion.div
+                            className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500"
+                            initial={reduceMotion ? false : { width: 0 }}
+                            animate={{ width: `${gradedAccuracyPct}%` }}
+                            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                          >
+                            {!reduceMotion ? (
+                              <motion.span
+                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/35 to-transparent"
+                                animate={{ x: ["-80%", "180%"] }}
+                                transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                                aria-hidden
+                              />
+                            ) : null}
+                          </motion.div>
+                        </div>
+                        <p className="relative mt-2 text-[11px] leading-snug text-muted-foreground">
+                          {gradedAnswerCorrect} correct out of {gradedAnswerTotal} quiz and case questions saved here.
+                          {" "}That is the real scoreboard.
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <p className="mt-4 text-center text-[11px] text-muted-foreground">
+                        Finish a scored quiz or case to unlock your combined accuracy bar.
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               )}
