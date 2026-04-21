@@ -1,18 +1,16 @@
 import Head from "next/head";
-import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { StudyChromeHeader } from "@/components/study-chrome-header";
+import { AppChromeHeader } from "@/components/app-chrome-header";
+import { RatingModal } from "@/components/rating-modal";
 import { CalculatorWidget } from "@/components/calculator-widget";
 import { defaultDescription, getSiteOrigin, siteTitle } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  BookOpen,
   Calculator,
   ChevronRight,
   Layers,
-  MessageSquare,
   Percent,
   Scale,
   Smartphone,
@@ -21,6 +19,8 @@ import {
 } from "lucide-react";
 
 const THEME_KEY = "accountants-companion-theme";
+const RATING_KEY = "accountants-companion-rated";
+const RATING_DISMISSED_KEY = "accountants-companion-rating-dismissed";
 
 type Theme = "light" | "dark";
 
@@ -315,6 +315,7 @@ function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
 
 export default function ToolsPage() {
   const [theme, setTheme] = useState<Theme>("light");
+  const [showRating, setShowRating] = useState(false);
 
   useEffect(() => {
     try {
@@ -341,6 +342,14 @@ export default function ToolsPage() {
       /* ignore */
     }
   }, [theme]);
+
+  const handleRatingComplete = () => {
+    try {
+      localStorage.setItem(RATING_KEY, "true");
+    } catch {
+      /* ignore */
+    }
+  };
 
   const pageTitle = `Tools · ${siteTitle}`;
   const pageUrl = `${getSiteOrigin()}/tools`;
@@ -383,7 +392,14 @@ export default function ToolsPage() {
             <div className="absolute bottom-20 left-10 h-72 w-72 rounded-full bg-violet-200/25 blur-3xl" />
           </div>
         )}
-        <StudyChromeHeader theme={theme} onToggleTheme={toggleTheme} active="tools" />
+        <AppChromeHeader
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          exportConversation={null}
+          onExportMarkdown={() => {}}
+          onExportPdf={() => {}}
+          onOpenRating={() => setShowRating(true)}
+        />
         <main className="relative z-10 mx-auto w-full max-w-4xl flex-1 px-3 py-5 sm:px-6 sm:py-8">
           <header className="mb-6">
             <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Tools</h1>
@@ -393,22 +409,10 @@ export default function ToolsPage() {
             </p>
           </header>
 
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" size="sm" className="rounded-xl">
-                <Link href="/" className="gap-2">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Chat
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm" className="rounded-xl">
-                <Link href="/study" className="gap-2">
-                  <BookOpen className="h-3.5 w-3.5" />
-                  Study
-                </Link>
-              </Button>
-            </div>
-            <nav aria-label="On this page" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <nav
+            aria-label="On this page"
+            className="mb-6 flex flex-wrap items-center gap-1 text-xs text-muted-foreground"
+          >
               <span className="mr-1 hidden sm:inline">Jump to:</span>
               <button type="button" onClick={() => jump("section-calculator")} className="rounded-lg px-2 py-1 font-medium text-primary hover:bg-primary/10">
                 Calculator
@@ -421,8 +425,7 @@ export default function ToolsPage() {
               <button type="button" onClick={() => jump("section-margins")} className="rounded-lg px-2 py-1 font-medium text-primary hover:bg-primary/10">
                 Margins
               </button>
-            </nav>
-          </div>
+          </nav>
 
           <details
             className={cn(
@@ -487,6 +490,21 @@ export default function ToolsPage() {
           </div>
         </main>
       </div>
+
+      <RatingModal
+        open={showRating}
+        onOpenChange={(open) => {
+          setShowRating(open);
+          if (!open) {
+            try {
+              localStorage.setItem(RATING_DISMISSED_KEY, "true");
+            } catch {
+              /* ignore */
+            }
+          }
+        }}
+        onComplete={handleRatingComplete}
+      />
     </>
   );
 }

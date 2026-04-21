@@ -1,16 +1,20 @@
 import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import { StudyMode } from "@/components/study-mode";
-import { StudyChromeHeader } from "@/components/study-chrome-header";
+import { AppChromeHeader } from "@/components/app-chrome-header";
+import { RatingModal } from "@/components/rating-modal";
 import { defaultDescription, getSiteOrigin, siteTitle } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 const THEME_KEY = "accountants-companion-theme";
+const RATING_KEY = "accountants-companion-rated";
+const RATING_DISMISSED_KEY = "accountants-companion-rating-dismissed";
 
 type Theme = "light" | "dark";
 
 export default function StudyPage() {
   const [theme, setTheme] = useState<Theme>("light");
+  const [showRating, setShowRating] = useState(false);
 
   useEffect(() => {
     try {
@@ -37,6 +41,14 @@ export default function StudyPage() {
       /* ignore */
     }
   }, [theme]);
+
+  const handleRatingComplete = () => {
+    try {
+      localStorage.setItem(RATING_KEY, "true");
+    } catch {
+      /* ignore */
+    }
+  };
 
   const studyTitle = `Study Mode · ${siteTitle}`;
   const studyUrl = `${getSiteOrigin()}/study`;
@@ -75,13 +87,35 @@ export default function StudyPage() {
             <div className="absolute left-1/3 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-teal-200/20 blur-3xl" />
           </div>
         )}
-        <StudyChromeHeader theme={theme} onToggleTheme={toggleTheme} active="study" />
+        <AppChromeHeader
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          exportConversation={null}
+          onExportMarkdown={() => {}}
+          onExportPdf={() => {}}
+          onOpenRating={() => setShowRating(true)}
+        />
         <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-1 flex-col px-3 py-3 sm:px-5 sm:py-5 md:px-6 md:py-6">
             <StudyMode theme={theme} />
           </div>
         </main>
       </div>
+
+      <RatingModal
+        open={showRating}
+        onOpenChange={(open) => {
+          setShowRating(open);
+          if (!open) {
+            try {
+              localStorage.setItem(RATING_DISMISSED_KEY, "true");
+            } catch {
+              /* ignore */
+            }
+          }
+        }}
+        onComplete={handleRatingComplete}
+      />
     </>
   );
 }

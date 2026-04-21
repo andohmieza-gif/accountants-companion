@@ -1,37 +1,34 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
   Loader2,
   Sparkles,
-  Star,
-  Download,
   Copy,
   Check,
-  Moon,
-  Sun,
   Square,
   RotateCcw,
   AlertTriangle,
   Bookmark,
   BookmarkCheck,
-  FileText,
   User,
   ArrowUp,
   Mic,
   MicOff,
-  BookOpen,
-  Wrench,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sidebar, type Conversation, type ChatMessage } from "@/components/sidebar";
+import { AppChromeHeader } from "@/components/app-chrome-header";
 import { RatingModal } from "@/components/rating-modal";
+import {
+  stripHtmlForApi,
+  messagePlainText,
+  exportConversationMarkdown,
+  exportConversationPdf,
+} from "@/lib/chat-export";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { CalculatorWidget } from "@/components/calculator-widget";
 import { cn } from "@/lib/utils";
@@ -89,10 +86,6 @@ function formatTime(): string {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function stripHtmlForApi(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-
 function toApiMessages(chatList: ChatMessage[]): { role: "user" | "assistant"; content: string }[] {
   return chatList
     .filter((m) => m.sender === "user" || m.sender === "bot")
@@ -117,80 +110,6 @@ function generatePreview(messages: ChatMessage[]): string {
   return text.slice(0, 50);
 }
 
-function messagePlainText(msg: ChatMessage): string {
-  if (msg.isHtml) return stripHtmlForApi(msg.content);
-  return msg.content;
-}
-
-function exportConversationMarkdown(conv: Conversation): void {
-  if (typeof window === "undefined") return;
-  const blocks = conv.messages.map((m) => {
-    const label = m.sender === "user" ? "You" : "Assistant";
-    const body = messagePlainText(m).trim();
-    return `## ${label}\n\n${body}\n`;
-  });
-  const md = `# ${conv.title}\n\n_Exported ${new Date().toLocaleString()}_\n\n${blocks.join("\n")}`;
-  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const safe = conv.title.replace(/[^\w\s-]/g, "").replace(/\s+/g, "_").slice(0, 48) || "chat";
-  a.href = url;
-  a.download = `${safe}.md`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function exportConversationPdf(conv: Conversation): void {
-  if (typeof window === "undefined") return;
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  const maxWidth = pageWidth - margin * 2;
-  let y = 20;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(conv.title, margin, y);
-  y += 8;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(128);
-  doc.text(`Exported ${new Date().toLocaleString()}`, margin, y);
-  y += 12;
-  doc.setTextColor(0);
-
-  for (const m of conv.messages) {
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
-    }
-
-    const label = m.sender === "user" ? "You" : "Assistant";
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(label, margin, y);
-    y += 6;
-
-    const body = messagePlainText(m).trim();
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const lines = doc.splitTextToSize(body, maxWidth);
-    for (const line of lines) {
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(line, margin, y);
-      y += 5;
-    }
-    y += 8;
-  }
-
-  const safe = conv.title.replace(/[^\w\s-]/g, "").replace(/\s+/g, "_").slice(0, 48) || "chat";
-  doc.save(`${safe}.pdf`);
-}
-
 async function fetchFollowups(question: string, answer: string): Promise<string[]> {
   try {
     const res = await fetch("/api/followups", {
@@ -207,7 +126,6 @@ async function fetchFollowups(question: string, answer: string): Promise<string[
 }
 
 export default function Home() {
-  const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -218,7 +136,6 @@ export default function Home() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showRating, setShowRating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>("light");
@@ -515,31 +432,17 @@ export default function Home() {
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // Keyboard shortcuts: "/" to focus input, Escape to close menus
+  // Keyboard shortcuts: "/" to focus input
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "/" && !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName ?? "")) {
         e.preventDefault();
         inputRef.current?.focus();
       }
-      if (e.key === "Escape") {
-        setShowExportMenu(false);
-      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  // Close export menu on click outside
-  useEffect(() => {
-    if (!showExportMenu) return;
-    const onClick = () => setShowExportMenu(false);
-    const timer = setTimeout(() => window.addEventListener("click", onClick), 0);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("click", onClick);
-    };
-  }, [showExportMenu]);
 
   const toggleTheme = () => {
     const next: Theme = theme === "light" ? "dark" : "light";
@@ -953,166 +856,15 @@ export default function Home() {
 
       {/* Main content */}
       <main className="relative z-10 flex flex-1 flex-col overflow-hidden">
-        {/* Modern Header */}
-        <header
-          className={cn(
-            "relative z-10 border-b px-4 py-3 md:px-6",
-            theme === "dark"
-              ? "border-emerald-500/10 bg-background/80 backdrop-blur-xl"
-              : "border-emerald-900/10 bg-background/90 backdrop-blur-xl"
-          )}
-        >
-          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3 pl-12 lg:pl-0">
-              <motion.div
-                className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset",
-                  theme === "dark"
-                    ? "bg-white/10 ring-white/15"
-                    : "bg-primary/10 ring-primary/20"
-                )}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Sparkles
-                  className={cn("h-5 w-5", theme === "dark" ? "text-emerald-200" : "text-emerald-800")}
-                />
-              </motion.div>
-              <span className="hidden truncate text-sm font-semibold tracking-tight text-foreground sm:block">
-                The Accountant&apos;s Companion
-              </span>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex shrink-0 items-center gap-1">
-              {/* Study Mode: primary CTA (distinct from icon-only header actions) */}
-              <motion.button
-                type="button"
-                onClick={() => router.push("/study")}
-                className={cn(
-                  "relative flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-md ring-1 transition-all",
-                  theme === "dark"
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-emerald-950/50 ring-emerald-400/35 hover:brightness-110 hover:ring-emerald-300/50"
-                    : "bg-primary text-primary-foreground shadow-primary/30 ring-primary/40 hover:bg-primary/92 hover:shadow-lg"
-                )}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                title="Open Study Mode: quizzes, case studies, flashcards, and practice"
-              >
-                <BookOpen className="h-4 w-4 shrink-0 opacity-95" aria-hidden />
-                <span className="pr-0.5">Study</span>
-              </motion.button>
-
-              <Link
-                href="/tools"
-                className={cn(
-                  "flex h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-semibold ring-1 transition-colors sm:px-4",
-                  theme === "dark"
-                    ? "bg-white/10 text-white ring-white/15 hover:bg-white/15"
-                    : "border border-border/60 bg-card text-foreground shadow-sm ring-black/[0.04] hover:bg-muted"
-                )}
-                title="Calculators and quick utilities"
-              >
-                <Wrench className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="hidden pr-0.5 sm:inline">Tools</span>
-              </Link>
-
-              {/* Divider */}
-              <div className={cn("mx-1 h-5 w-px", theme === "dark" ? "bg-white/10" : "bg-border")} />
-
-              {/* Export dropdown */}
-              <div className="relative">
-                <motion.button
-                  type="button"
-                  disabled={!activeConversation || activeConversation.messages.length === 0}
-                  onClick={() => setShowExportMenu((v) => !v)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                    !activeConversation || activeConversation.messages.length === 0
-                      ? "text-muted-foreground/30 cursor-not-allowed"
-                      : theme === "dark"
-                        ? "text-white/60 hover:bg-white/10 hover:text-white"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  whileHover={activeConversation?.messages.length ? { scale: 1.05 } : {}}
-                  whileTap={activeConversation?.messages.length ? { scale: 0.95 } : {}}
-                  title="Export"
-                >
-                  <Download className="h-4 w-4" />
-                </motion.button>
-                <AnimatePresence>
-                  {showExportMenu && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                      className={cn(
-                        "absolute right-0 top-full z-20 mt-2 w-40 overflow-hidden rounded-xl border p-1.5 shadow-xl",
-                        theme === "dark" ? "border-white/10 bg-card" : "border-border bg-card shadow-md"
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleExportMarkdown();
-                          setShowExportMenu(false);
-                        }}
-                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                      >
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        Markdown
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          handleExportPdf();
-                          setShowExportMenu(false);
-                        }}
-                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                      >
-                        <Download className="h-4 w-4 text-muted-foreground" />
-                        PDF
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <motion.button
-                type="button"
-                onClick={() => setShowRating(true)}
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                  theme === "dark"
-                    ? "text-white/60 hover:bg-white/10 hover:text-white"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title="Rate"
-              >
-                <Star className="h-4 w-4" />
-              </motion.button>
-
-              <motion.button
-                type="button"
-                onClick={toggleTheme}
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
-                  theme === "dark"
-                    ? "text-white/60 hover:bg-white/10 hover:text-white"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                title={theme === "dark" ? "Light mode" : "Dark mode"}
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </motion.button>
-            </div>
-          </div>
-        </header>
+        <AppChromeHeader
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          sidebarGutter
+          exportConversation={activeConversation}
+          onExportMarkdown={handleExportMarkdown}
+          onExportPdf={handleExportPdf}
+          onOpenRating={() => setShowRating(true)}
+        />
 
         {/* Chat area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
