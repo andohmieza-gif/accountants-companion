@@ -679,7 +679,7 @@ export default function Home() {
     const builderMatch = /who (built|created|made) (this|you|the (app|chatbot|site))/.test(question);
 
     if (builderMatch) {
-      const html = `Mieza Andoh built this app. She is an accounting expert with deep experience in accounting, audit, and financial reporting. <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer" class="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Connect on LinkedIn</a>.`;
+      const html = `Mieza Andoh built this app. He is an accounting expert with deep experience in accounting, audit, and financial reporting. <a href="https://www.linkedin.com/in/mieza-morkye-andoh" target="_blank" rel="noopener noreferrer" class="font-medium text-primary underline underline-offset-4 hover:text-primary/80">Connect on LinkedIn</a>.`;
       updateConversation(convId, [
         ...newMessages,
         { id: newId(), sender: "bot", content: html, time: formatTime(), isHtml: true },
